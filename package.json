@@ -1,0 +1,39 @@
+{
+  "name": "@humeai/cli",
+  "version": "0.0.2",
+  "module": "index.ts",
+  "type": "module",
+  "description": "CLI for Hume.ai's OCTAVE expressive TTS API",
+  "devDependencies": {
+    "@types/bun": "^1.2.2",
+    "@types/debug": "^4.1.12",
+    "prettier": "^3.5.2"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "scripts": {
+    "test": "bun test",
+    "test:verbose": "BUN_TEST_VERBOSE=1 bun test",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write \"**/*.{ts,js,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,js,json,md}\"",
+    "prebuild": "bun build src/index.ts --compile --outfile dist/hume",
+    "prepublishOnly": "npm run prebuild"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.10.0",
+    "bun": "^1.2.2",
+    "clipanion": "^4.0.0-rc.4",
+    "debug": "^4.4.0",
+    "hume": "^0.9.12",
+    "open": "^10.1.0",
+    "typanion": "^3.14.0"
+  },
+  "files": [
+    "dist/hume"
+  ],
+  "bin": {
+    "hume": "dist/hume"
+  }
+}

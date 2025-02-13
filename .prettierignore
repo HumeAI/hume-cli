@@ -1,0 +1,6 @@
+node_modules
+dist
+mcp/node_modules
+tts-audio
+.github
+bun.lockb

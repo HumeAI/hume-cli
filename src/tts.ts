@@ -468,28 +468,31 @@ export class Tts {
       debug('Request payload: %O', JSON.stringify(tts, null, 2));
       
       await reporter.withSpinner('Synthesizing...', async () => {
-        for await (const snippet of hume.tts.synthesizeJsonStreaming(tts)) {
+        let snippetIndex = 0
+        let currentGenerationId: string | null = null
+        for await (const snippet of await hume.tts.synthesizeJsonStreaming(tts)) {
+          if (currentGenerationId !== snippet.generationId) {
+            snippetIndex = 0
+            currentGenerationId = snippet.generationId
+          }
           debug('Streaming snippet: %O', JSON.stringify(snippet, null, 2));
           
           // Add generation ID to the set for history
           generationIds.add(snippet.generationId);
           
-          // Generate the proper filename with snippet index
           const path = outputOpts.type === 'path' 
-            ? `${outputOpts.path}.${snippet.snippetIndex}` 
-            : join(outputOpts.dir, `${outputOpts.prefix}${snippet.generationId}.${snippet.snippetIndex}.${outputOpts.format}`);
+            ? `${outputOpts.path}.${snippetIndex}` 
+            : join(outputOpts.dir, `${outputOpts.prefix}${snippet.generationId}.${snippetIndex}.${outputOpts.format}`);
           
-          // Write the snippet to a file
           await this.ensureDirAndWriteFile(path, Buffer.from(snippet.audio, 'base64'));
           
-          // Add file to the list of written files
           writtenFiles.push({
             generationId: snippet.generationId,
             path,
           });
           
           // Log the generation ID for the first snippet
-          if (snippet.snippetIndex === 0) {
+          if (snippetIndex === 0) {
             reporter.info(`Generation ID: ${snippet.generationId}`);
           }
           
@@ -499,9 +502,10 @@ export class Tts {
             if (opts.play === 'first' && !Array.from(generationIds).every(id => id === snippet.generationId)) {
               continue; // Skip playing this snippet as it's not from the first generation
             }
-            reporter.info(`Playing snippet ${snippet.snippetIndex + 1} of ${snippet.snippetCount}`);
+            reporter.info(`Playing snippet ${snippetIndex} of ${snippet.generationId}`);
             await this.playAudio(path, opts.playCommand);
           }
+          snippetIndex++
         }
       });
       

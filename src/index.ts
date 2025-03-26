@@ -360,7 +360,7 @@ class TtsCommand extends Command {
     description: usageDescriptions['tts.trailingSilence'],
   });
   
-  streaming = Option.Boolean('--[no-]streaming', {
+  streaming = Option.Boolean('--streaming', {
     description: usageDescriptions['tts.streaming'],
   });
 

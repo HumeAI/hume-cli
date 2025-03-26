@@ -139,6 +139,8 @@ const calculateUtterance = (opts: {
   text: string;
   description: string | null;
   presetVoice: boolean;
+  speed: number | null;
+  trailingSilence: number | null;
 }): Hume.tts.PostedUtterance => {
   const utterance: Hume.tts.PostedUtterance = {
     text: opts.text,
@@ -154,6 +156,12 @@ const calculateUtterance = (opts: {
   }
   if (opts.description) {
     utterance.description = opts.description;
+  }
+  if (opts.speed !== null) {
+    utterance.speed = opts.speed;
+  }
+  if (opts.trailingSilence !== null) {
+    utterance.trailingSilence = opts.trailingSilence;
   }
   return utterance;
 };
@@ -174,6 +182,9 @@ export type SynthesisOpts = CommonOpts & {
   lastIndex?: number;
   playCommand?: string;
   presetVoice?: boolean;
+  speed?: number;
+  trailingSilence?: number;
+  streaming?: boolean;
 };
 
 export class Tts {
@@ -201,6 +212,9 @@ export class Tts {
     lastIndex: null,
     playCommand: undefined,
     presetVoice: false,
+    speed: null,
+    trailingSilence: null,
+    streaming: true,
   };
 
   private async writeFiles(
@@ -360,6 +374,9 @@ export class Tts {
     const lastIndex = osgd('lastIndex').item;
     const playCommand = osgd('playCommand').item;
     const presetVoice = osgd('presetVoice').item;
+    const speed = osgd('speed').item;
+    const trailingSilence = osgd('trailingSilence').item;
+    const streaming = osgd('streaming').item;
 
     // VoiceId and voiceName are mutually exclusive within opts, but
     // not across layers. VoiceId defined with greater priority should
@@ -392,6 +409,9 @@ export class Tts {
       lastIndex,
       playCommand,
       presetVoice,
+      speed,
+      trailingSilence,
+      streaming,
     };
   }
 
@@ -421,17 +441,89 @@ export class Tts {
       text = await this.readStdin();
     }
 
-    const utterance = calculateUtterance({ ...opts, text });
+    const utterance = calculateUtterance({ 
+      ...opts, 
+      text,
+      speed: opts.speed,
+      trailingSilence: opts.trailingSilence
+    });
 
     const tts: Hume.tts.PostedTts = {
       utterances: [utterance],
       numGenerations: outputOpts.numGenerations,
       format: { type: opts.format },
     };
+    
     await this.maybeAddContext(opts, tts);
 
     if (!hume) {
       throw new ApiKeyNotSetError();
+    }
+
+    if (opts.streaming && typeof hume.tts.synthesizeJsonStreaming === 'function') {
+      reporter.info('Using streaming mode');
+      const generationIds = new Set<string>();
+      const writtenFiles: Array<{ generationId: string; path: string }> = [];
+      
+      debug('Request payload: %O', JSON.stringify(tts, null, 2));
+      
+      await reporter.withSpinner('Synthesizing...', async () => {
+        for await (const snippet of hume.tts.synthesizeJsonStreaming(tts)) {
+          debug('Streaming snippet: %O', JSON.stringify(snippet, null, 2));
+          
+          // Add generation ID to the set for history
+          generationIds.add(snippet.generationId);
+          
+          // Generate the proper filename with snippet index
+          const path = outputOpts.type === 'path' 
+            ? `${outputOpts.path}.${snippet.snippetIndex}` 
+            : join(outputOpts.dir, `${outputOpts.prefix}${snippet.generationId}.${snippet.snippetIndex}.${outputOpts.format}`);
+          
+          // Write the snippet to a file
+          await this.ensureDirAndWriteFile(path, Buffer.from(snippet.audio, 'base64'));
+          
+          // Add file to the list of written files
+          writtenFiles.push({
+            generationId: snippet.generationId,
+            path,
+          });
+          
+          // Log the generation ID for the first snippet
+          if (snippet.snippetIndex === 0) {
+            reporter.info(`Generation ID: ${snippet.generationId}`);
+          }
+          
+          // Play the audio if requested
+          if (opts.play !== 'off') {
+            // For 'first' play option, only play snippets from the first generation ID
+            if (opts.play === 'first' && !Array.from(generationIds).every(id => id === snippet.generationId)) {
+              continue; // Skip playing this snippet as it's not from the first generation
+            }
+            reporter.info(`Playing snippet ${snippet.snippetIndex + 1} of ${snippet.snippetCount}`);
+            await this.playAudio(path, opts.playCommand);
+          }
+        }
+      });
+      
+      // Save generation IDs for history/continuation
+      await this.saveLastSynthesis({
+        ids: Array.from(generationIds),
+        timestamp: Date.now(),
+      });
+      
+      // Log the written files
+      if (writtenFiles.length === 1) {
+        reporter.info(`Wrote ${writtenFiles[0].path}`);
+      } else {
+        reporter.info(`Wrote ${['', ...writtenFiles.map(({ path }) => path)].join('\n  ')}`);
+      }
+      
+      reporter.json({ 
+        writtenFiles,
+        generationIds: Array.from(generationIds),
+      });
+      
+      return;
     }
 
     const result = await reporter.withSpinner('Synthesizing...', async () => {

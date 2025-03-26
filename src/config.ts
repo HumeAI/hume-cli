@@ -29,6 +29,9 @@ export type ConfigData = {
     lastIndex?: number;
     playCommand?: string;
     presetVoice?: boolean;
+    speed?: number;
+    trailingSilence?: number;
+    streaming?: boolean;
   };
   json?: boolean;
   pretty?: boolean;
@@ -45,6 +48,9 @@ export const configValidators = {
   'tts.format': t.isEnum(['wav', 'mp3', 'pcm'] as const),
   'tts.playCommand': t.isString(),
   'tts.presetVoice': t.isBoolean(),
+  'tts.speed': t.cascade(t.isNumber(), t.isInInclusiveRange(0.25, 3.0)),
+  'tts.trailingSilence': t.cascade(t.isNumber(), t.isInInclusiveRange(0.0, 5.0)),
+  'tts.streaming': t.isBoolean(),
   json: t.isBoolean(),
   pretty: t.isBoolean(),
   apiKey: t.isString(),
@@ -160,6 +166,10 @@ const parseConfigKV = (name: keyof typeof configValidators, value: string): unkn
       validValues = '\nValid values: "all", "first", or "off"';
     } else if (name === 'tts.format') {
       validValues = '\nValid values: "wav", "mp3", or "pcm"';
+    } else if (name === 'tts.speed') {
+      validValues = '\nValid values: number between 0.25 and 3.0';
+    } else if (name === 'tts.trailingSilence') {
+      validValues = '\nValid values: number between 0.0 and 5.0';
     }
 
     throw new Error(`Invalid value for ${name}: "${value}"${validValues}\n${errors.join('\n')}`);

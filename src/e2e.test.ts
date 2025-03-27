@@ -4,12 +4,17 @@ import { mkdir, mkdtemp, rm } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { existsSync } from 'fs';
+import type { Snippet as Snippet_ } from 'hume/serialization/resources/tts/types';
+import type { Hume } from 'hume';
+
+type Snippet = Hume.tts.Snippet;
+type RawSnippet = Snippet_.Raw;
 
 // Test utility function for logging during tests
 // Only logs when BUN_TEST_VERBOSE=1 is set
-function log(message: string): void {
+function log(...args: any[]): void {
   if (process.env.BUN_TEST_VERBOSE === '1') {
-    console.log(message);
+    console.log(...args);
   }
 }
 
@@ -24,7 +29,7 @@ class TestEnvironment {
 
   async setup() {
     await this.server.start();
-    this.server.setupDefaultTtsHandler();
+    this.server.setupDefaultTtsStreamHandler();
     this.apiUrl = this.server.getBaseUrl();
 
     // Set up test filesystem
@@ -83,7 +88,7 @@ class TestEnvironment {
    * Get the TTS API requests specifically
    */
   getTtsRequests() {
-    return this.server.findRequestsTo('/v0/tts');
+    return this.server.findRequestsTo('/v0/tts/stream/json');
   }
 
   /**
@@ -195,20 +200,7 @@ class TestEnvironment {
 }
 
 interface MockTtsOptions {
-  generations?: Array<{
-    generation_id?: string;
-    audio?: string;
-    duration?: number;
-    file_size?: number;
-    format?: { type: string };
-    sample_rate?: number;
-    encoding?: {
-      type: string;
-      format: string;
-      sample_rate: number;
-    };
-    snippets?: any[];
-  }>;
+  snippets?: Array<RawSnippet>;
   error?: {
     status: number;
     message: string;
@@ -332,13 +324,13 @@ class MockHumeServer {
 
   configureTtsResponse(options: MockTtsOptions) {
     this.ttsOptions = options;
-    this.setupDefaultTtsHandler();
+    this.setupDefaultTtsStreamHandler();
   }
 
   // Default TTS response handler
-  setupDefaultTtsHandler() {
+  setupDefaultTtsStreamHandler() {
     // Handle TTS API requests - actual path used by the client
-    this.addHandler('/v0/tts', async (req) => {
+    this.addHandler('/v0/tts/stream/json', async (req) => {
       try {
         const body = await req.json();
 
@@ -350,34 +342,28 @@ class MockHumeServer {
           });
         }
 
-        // Determine number of generations to return
         const numGenerations = body.numGenerations || 1;
 
-        // If specific generations are provided in options, use those
-        let generations;
-        if (this.ttsOptions.generations && this.ttsOptions.generations.length > 0) {
-          generations = this.ttsOptions.generations;
+        let snippets;
+        if (this.ttsOptions.snippets && this.ttsOptions.snippets.length > 0) {
+          snippets = this.ttsOptions.snippets;
         } else {
           // Otherwise create default mock generations
           const mockAudio = Buffer.from('mock-audio-data').toString('base64');
 
-          generations = Array.from({ length: numGenerations }, (_, i) => ({
+          snippets = Array.from({ length: numGenerations }, (_, i) => ({
             generation_id: `mock_gen_${i + 1}`,
             audio: mockAudio,
-            duration: 1.5, // in seconds
-            file_size: 100, // in bytes
-            format: { type: 'wav' },
-            sample_rate: 44100,
-            encoding: {
-              type: 'base64',
-              format: 'wav',
-              sample_rate: 44100,
-            },
-            snippets: [],
+            id: `mock_snippet_${i + 1}`,
+            text: 'mock text',
+            utteranceIndex: 0,
           }));
         }
 
-        return Response.json({ generations });
+        return new Response(snippets!.map((x) => JSON.stringify(x) + '\n').join(''), {
+          status: 200,
+          headers: { 'Content-Type': 'text-plain; charset=utf-8' },
+        });
       } catch (error) {
         log(`Error in mock handler: ${error}`);
         return new Response(JSON.stringify({ error: 'Internal server error' }), {
@@ -467,24 +453,17 @@ describe('CLI End-to-End Tests', () => {
 
   // Helper functions
   // Use NonNullable to ensure TypeScript knows we're accessing a valid type
-  const createGeneration = (
-    id: string,
-    options: Partial<NonNullable<MockTtsOptions['generations']>[0]> = {}
-  ) => ({
-    generation_id: id,
-    audio: Buffer.from(`audio-data-${id}`).toString('base64'),
-    duration: 1.5,
-    file_size: 200,
-    format: { type: 'wav' },
-    sample_rate: 44100,
-    encoding: {
-      type: 'base64',
-      format: 'wav',
-      sample_rate: 44100,
-    },
-    snippets: [],
-    ...options,
-  });
+  const createSnippet = (partial: Partial<Snippet>): RawSnippet => {
+    const generationId = partial.generationId ?? 'test_gen_123';
+    const id = partial.id ?? `${generationId}-0`;
+    return {
+      generation_id: generationId,
+      id,
+      audio: Buffer.from(`audio-data-${generationId}-${id}`).toString('base64'),
+      text: partial.text ?? 'test text',
+      utterance_index: partial.utteranceIndex ?? 0,
+    };
+  };
 
   // Helper to check common test failure details
   const logFailureDetails = (result: { exitCode: number; stdout: string; stderr: string }) => {
@@ -511,7 +490,7 @@ describe('CLI End-to-End Tests', () => {
   test('Basic text-to-speech with description', async () => {
     // Configure a custom response
     testEnv.configureTtsResponse({
-      generations: [createGeneration('test_gen_123', { duration: 2.5 })],
+      snippets: [createSnippet({ generationId: 'test_gen_123' })],
     });
 
     const outputDir = await testEnv.createOutputDir('tts-output');
@@ -545,22 +524,10 @@ describe('CLI End-to-End Tests', () => {
   test('Multiple generations with specific format', async () => {
     // Configure a custom response with multiple generations
     testEnv.configureTtsResponse({
-      generations: [
-        createGeneration('multi_gen_1', {
-          format: { type: 'mp3' },
-          encoding: { type: 'base64', format: 'mp3', sample_rate: 44100 },
-          duration: 1.0,
-        }),
-        createGeneration('multi_gen_2', {
-          format: { type: 'mp3' },
-          encoding: { type: 'base64', format: 'mp3', sample_rate: 44100 },
-          duration: 1.2,
-        }),
-        createGeneration('multi_gen_3', {
-          format: { type: 'mp3' },
-          encoding: { type: 'base64', format: 'mp3', sample_rate: 44100 },
-          duration: 1.3,
-        }),
+      snippets: [
+        createSnippet({ generationId: 'multi_gen_1' }),
+        createSnippet({ generationId: 'multi_gen_2' }),
+        createSnippet({ generationId: 'multi_gen_3' }),
       ],
     });
 
@@ -602,7 +569,7 @@ describe('CLI End-to-End Tests', () => {
   test('Reading from stdin', async () => {
     // Configure a custom response
     testEnv.configureTtsResponse({
-      generations: [createGeneration('stdin_gen_123', { duration: 1.8 })],
+      snippets: [createSnippet({ generationId: 'stdin_gen_123' })],
     });
 
     const inputText = 'This is text from standard input';
@@ -716,19 +683,10 @@ describe('CLI End-to-End Tests', () => {
 
     // Configure the TTS responses for first call with 3 generations
     testEnv.configureTtsResponse({
-      generations: [
-        createGeneration('config_test_gen_1', {
-          format: { type: 'mp3' },
-          encoding: { type: 'base64', format: 'mp3', sample_rate: 44100 },
-        }),
-        createGeneration('config_test_gen_2', {
-          format: { type: 'mp3' },
-          encoding: { type: 'base64', format: 'mp3', sample_rate: 44100 },
-        }),
-        createGeneration('config_test_gen_3', {
-          format: { type: 'mp3' },
-          encoding: { type: 'base64', format: 'mp3', sample_rate: 44100 },
-        }),
+      snippets: [
+        createSnippet({ generationId: 'config_test_gen_1' }),
+        createSnippet({ generationId: 'config_test_gen_2' }),
+        createSnippet({ generationId: 'config_test_gen_3' }),
       ],
     });
 
@@ -771,12 +729,7 @@ describe('CLI End-to-End Tests', () => {
 
     // Configure the TTS response for continuation
     testEnv.configureTtsResponse({
-      generations: [
-        createGeneration('continuation_gen_1', {
-          format: { type: 'mp3' },
-          encoding: { type: 'base64', format: 'mp3', sample_rate: 44100 },
-        }),
-      ],
+      snippets: [createSnippet({ generationId: 'continuation_gen_1' })],
     });
 
     // Step 4: Run TTS with continuation using --last and --last-index

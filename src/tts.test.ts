@@ -16,20 +16,21 @@ const mockSynthesizeJson = (
   return mock(() => Promise.resolve({ generations }) as any);
 };
 
-const snippy = (gen: number = 1, snip: number = 0, {text, audio}: {text: string, audio: string} = {
-  text: `text_${gen}_${snip}`,
-  audio: `audio_${gen}_${snip}`
-}): Snippet => ({
+const snippy = (
+  gen: number = 1,
+  snip: number = 0,
+  { text, audio }: { text: string; audio: string } = {
+    text: `text_${gen}_${snip}`,
+    audio: `audio_${gen}_${snip}`,
+  }
+): Snippet => ({
   generationId: `gen_${gen}`,
   id: `gen_${gen}_${snip}`,
   text,
-  audio
+  audio,
 });
 const mockSynthesizeJsonStreaming = (
-  snippets: Array<Hume.tts.Snippet> = [
-    snippy(1, 0),
-    snippy(1, 1),
-  ]
+  snippets: Array<Hume.tts.Snippet> = [snippy(1, 0), snippy(1, 1)]
 ): Mock<HumeClient['tts']['synthesizeJsonStreaming']> => {
   return mock(() => {
     const asyncIterator = {
@@ -41,23 +42,21 @@ const mockSynthesizeJsonStreaming = (
             }
             const snippet = snippets.shift();
             return { done: false, value: snippet };
-          }
+          },
         };
-      }
+      },
     };
     return asyncIterator as any;
   });
 };
 
-const defaultSettings = (
-  options?: {
-    synthesizeJson?: Mock<HumeClient['tts']['synthesizeJson']>;
-    synthesizeJsonStreaming?: Mock<HumeClient['tts']['synthesizeJsonStreaming']>;
-  }
-): Awaited<ReturnType<Tts['getSettings']>> => {
+const defaultSettings = (options?: {
+  synthesizeJson?: Mock<HumeClient['tts']['synthesizeJson']>;
+  synthesizeJsonStreaming?: Mock<HumeClient['tts']['synthesizeJsonStreaming']>;
+}): Awaited<ReturnType<Tts['getSettings']>> => {
   const synthesizeJson = options?.synthesizeJson ?? mockSynthesizeJson();
   const synthesizeJsonStreaming = options?.synthesizeJsonStreaming ?? mockSynthesizeJsonStreaming();
-  
+
   return {
     session: {} as ConfigData,
     globalConfig: {} as ConfigData,
@@ -69,7 +68,7 @@ const defaultSettings = (
       withSpinner: mock((_message, callback) => callback()),
     },
     hume: {
-      tts: { 
+      tts: {
         synthesizeJson,
         synthesizeJsonStreaming,
       },
@@ -88,10 +87,12 @@ const setupTest = (
     saveLastSynthesis?: Mock<Tts['saveLastSynthesis']>;
   } = {}
 ) => {
-  const settings = args.getSettings ?? defaultSettings({
-    synthesizeJson: args.synthesizeJson,
-    synthesizeJsonStreaming: args.synthesizeJsonStreaming
-  });
+  const settings =
+    args.getSettings ??
+    defaultSettings({
+      synthesizeJson: args.synthesizeJson,
+      synthesizeJsonStreaming: args.synthesizeJsonStreaming,
+    });
 
   const mocks = Object.freeze({
     ensureDirAndWriteFile: args.ensureDirAndWriteFile ?? mock(() => Promise.resolve()),
@@ -99,7 +100,8 @@ const setupTest = (
     getSettings:
       args.getSettings ?? (mock(() => Promise.resolve(settings)) as Mock<Tts['getSettings']>),
     synthesizeJson: args.synthesizeJson ?? (settings as any).hume.tts.synthesizeJson,
-    synthesizeJsonStreaming: args.synthesizeJsonStreaming ?? (settings as any).hume.tts.synthesizeJsonStreaming,
+    synthesizeJsonStreaming:
+      args.synthesizeJsonStreaming ?? (settings as any).hume.tts.synthesizeJsonStreaming,
     getLastSynthesis: args.getLastSynthesis ?? mock(() => Promise.resolve(null)),
     saveLastSynthesis: args.saveLastSynthesis ?? mock(() => Promise.resolve()),
   });
@@ -116,13 +118,11 @@ const setupTest = (
 
 describe('CLI flags', () => {
   test('--text', async () => {
-    const synthesizeJsonStreaming = mockSynthesizeJsonStreaming([
-      snippy(1)
-    ]);
+    const synthesizeJsonStreaming = mockSynthesizeJsonStreaming([snippy(1)]);
     const playAudio = mock(() => Promise.resolve());
     const { tts } = setupTest({
       synthesizeJsonStreaming,
-      playAudio
+      playAudio,
     });
 
     await tts.synthesize({ text: 'Hello world' });
@@ -140,14 +140,14 @@ describe('TTS scenarios', () => {
       snippy(2, 0),
       snippy(2, 1),
     ]);
-    
+
     const playAudio: Mock<Tts['playAudio']> = mock(() => Promise.resolve());
     const ensureDirAndWriteFile: Mock<Tts['ensureDirAndWriteFile']> = mock(() => Promise.resolve());
 
     const { tts } = setupTest({
       synthesizeJsonStreaming,
       playAudio,
-      ensureDirAndWriteFile
+      ensureDirAndWriteFile,
     });
 
     await tts.synthesize({
@@ -185,9 +185,7 @@ describe('TTS scenarios', () => {
   });
 
   test('uses preset-voice flag to set provider HUME_AI with voiceName', async () => {
-    const synthesizeJsonStreaming = mockSynthesizeJsonStreaming([
-      snippy()
-    ]);
+    const synthesizeJsonStreaming = mockSynthesizeJsonStreaming([snippy()]);
 
     const { tts, mocks } = setupTest({
       synthesizeJsonStreaming,
@@ -213,9 +211,7 @@ describe('TTS scenarios', () => {
   });
 
   test('uses preset-voice flag to set provider HUME_AI with voiceId', async () => {
-    const synthesizeJsonStreaming = mockSynthesizeJsonStreaming([
-      snippy(1)
-    ]);
+    const synthesizeJsonStreaming = mockSynthesizeJsonStreaming([snippy(1)]);
 
     const { tts, mocks } = setupTest({
       synthesizeJsonStreaming,
@@ -324,10 +320,8 @@ describe('TTS scenarios', () => {
       format: 'pcm',
     };
 
-    const synthesizeJsonStreaming = mockSynthesizeJsonStreaming([
-      snippy()
-    ]);
-    
+    const synthesizeJsonStreaming = mockSynthesizeJsonStreaming([snippy()]);
+
     const ensureDirAndWriteFile: Mock<Tts['ensureDirAndWriteFile']> = mock(() => Promise.resolve());
 
     const getSettingsMock = mock(() => {
@@ -342,7 +336,7 @@ describe('TTS scenarios', () => {
           withSpinner: mock((_message, callback) => callback()),
         },
         hume: {
-          tts: { 
+          tts: {
             synthesizeJsonStreaming,
             synthesizeJson: mockSynthesizeJson(),
           },
@@ -362,7 +356,7 @@ describe('TTS scenarios', () => {
     expect(ensureDirAndWriteFile.mock.calls).toEqual([
       ['config/output/tts-gen_1.0.pcm', expect.any(Buffer)],
     ]);
-    
+
     expect(synthesizeJsonStreaming).toHaveBeenCalledWith({
       numGenerations: 1,
       utterances: [
@@ -397,9 +391,7 @@ describe('continue functionality', () => {
       timestamp: Date.now(),
     };
 
-    const synthesizeJsonStreaming = mockSynthesizeJsonStreaming([
-      snippy(10)
-    ]);
+    const synthesizeJsonStreaming = mockSynthesizeJsonStreaming([snippy(10)]);
 
     const { tts, mocks } = setupTest({
       getLastSynthesis: mock(() => Promise.resolve(lastGeneration)),
@@ -425,10 +417,8 @@ describe('continue functionality', () => {
       timestamp: Date.now(),
     };
 
-    const synthesizeJsonStreaming = mockSynthesizeJsonStreaming([
-      snippy(10)
-    ]);
-    
+    const synthesizeJsonStreaming = mockSynthesizeJsonStreaming([snippy(10)]);
+
     const { tts } = setupTest({
       getLastSynthesis: mock(() => Promise.resolve(lastGeneration)),
       synthesizeJsonStreaming,
@@ -439,7 +429,7 @@ describe('continue functionality', () => {
       last: true,
       lastIndex: 2,
     });
-    
+
     expect(synthesizeJsonStreaming).toHaveBeenCalledWith({
       format: expect.anything(),
       utterances: expect.anything(),
@@ -477,14 +467,14 @@ describe('streaming functionality', () => {
       snippy(1, 1),
       snippy(1, 2),
     ]);
-    
+
     const playAudio: Mock<Tts['playAudio']> = mock(() => Promise.resolve());
     const ensureDirAndWriteFile: Mock<Tts['ensureDirAndWriteFile']> = mock(() => Promise.resolve());
-    
+
     const { tts, mocks } = setupTest({
       synthesizeJsonStreaming,
       playAudio,
-      ensureDirAndWriteFile
+      ensureDirAndWriteFile,
     });
 
     await tts.synthesize({
@@ -493,32 +483,32 @@ describe('streaming functionality', () => {
       outputDir: 'stream/output',
       prefix: 'stream-',
       format: 'wav',
-      play: 'all'
+      play: 'all',
     });
 
     // Verify synthesizeJsonStreaming was called with the correct parameters
     expect(synthesizeJsonStreaming).toHaveBeenCalled();
-    
+
     // Verify each snippet was written to the correct file with the correct naming pattern
     expect(ensureDirAndWriteFile).toHaveBeenCalledTimes(3);
     expect(ensureDirAndWriteFile.mock.calls).toEqual([
       ['stream/output/stream-gen_1.0.wav', expect.any(Buffer)],
       ['stream/output/stream-gen_1.1.wav', expect.any(Buffer)],
-      ['stream/output/stream-gen_1.2.wav', expect.any(Buffer)]
+      ['stream/output/stream-gen_1.2.wav', expect.any(Buffer)],
     ]);
-    
+
     // Verify each snippet was played as it was received
     expect(playAudio).toHaveBeenCalledTimes(3);
     expect(playAudio.mock.calls).toEqual([
       ['stream/output/stream-gen_1.0.wav', undefined],
       ['stream/output/stream-gen_1.1.wav', undefined],
-      ['stream/output/stream-gen_1.2.wav', undefined]
+      ['stream/output/stream-gen_1.2.wav', undefined],
     ]);
-    
+
     // Verify generation IDs were saved for history/continuation
     expect(mocks.saveLastSynthesis).toHaveBeenCalledWith({
       ids: ['gen_1'],
-      timestamp: expect.any(Number)
+      timestamp: expect.any(Number),
     });
   });
 
@@ -527,12 +517,12 @@ describe('streaming functionality', () => {
     const synthesizeJsonStreaming = mockSynthesizeJsonStreaming();
     const { tts, mocks } = setupTest({
       synthesizeJson,
-      synthesizeJsonStreaming
+      synthesizeJsonStreaming,
     });
 
     await tts.synthesize({
       text: 'Test with streaming disabled',
-      streaming: false
+      streaming: false,
     });
 
     expect(synthesizeJson).toHaveBeenCalled();

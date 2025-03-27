@@ -269,14 +269,8 @@ const ttsExamples: Usage['examples'] = [
     'Setting a custom audio player for the session',
     'hume session set tts.playCommand "vlc $AUDIO_FILE --play-and-exit"',
   ],
-  [
-    'Adjusting speech speed',
-    '$0 tts "I am speaking very slowly" -v narrator --speed 0.75',
-  ],
-  [
-    'Adding trailing silence',
-    '$0 tts "Wait for it..." -v narrator --trailing-silence 3.5',
-  ],
+  ['Adjusting speech speed', '$0 tts "I am speaking very slowly" -v narrator --speed 0.75'],
+  ['Adding trailing silence', '$0 tts "Wait for it..." -v narrator --trailing-silence 3.5'],
 ];
 class TtsCommand extends Command {
   static paths = [['tts']];
@@ -349,17 +343,17 @@ class TtsCommand extends Command {
   presetVoice = Option.Boolean('--preset-voice', {
     description: usageDescriptions['tts.presetVoice'],
   });
-  
+
   speed = Option.String('--speed', {
     validator: t.cascade(t.isNumber(), t.isInInclusiveRange(0.25, 3.0)),
     description: usageDescriptions['tts.speed'],
   });
-  
+
   trailingSilence = Option.String('--trailing-silence', {
     validator: t.cascade(t.isNumber(), t.isInInclusiveRange(0.0, 5.0)),
     description: usageDescriptions['tts.trailingSilence'],
   });
-  
+
   streaming = Option.Boolean('--streaming', {
     description: usageDescriptions['tts.streaming'],
   });

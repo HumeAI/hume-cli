@@ -5,10 +5,10 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { existsSync } from 'fs';
 import type { Snippet as Snippet_ } from 'hume/serialization/resources/tts/types';
-import type {Hume} from 'hume'
+import type { Hume } from 'hume';
 
-type Snippet = Hume.tts.Snippet
-type RawSnippet = Snippet_.Raw
+type Snippet = Hume.tts.Snippet;
+type RawSnippet = Snippet_.Raw;
 
 // Test utility function for logging during tests
 // Only logs when BUN_TEST_VERBOSE=1 is set
@@ -355,15 +355,15 @@ class MockHumeServer {
             generation_id: `mock_gen_${i + 1}`,
             audio: mockAudio,
             id: `mock_snippet_${i + 1}`,
-            text: "mock text",
+            text: 'mock text',
             utteranceIndex: 0,
           }));
         }
 
-        return new Response(snippets!.map(x => JSON.stringify(x) + '\n').join(''), {
+        return new Response(snippets!.map((x) => JSON.stringify(x) + '\n').join(''), {
           status: 200,
-          headers: { 'Content-Type': 'text-plain; charset=utf-8' }
-        })
+          headers: { 'Content-Type': 'text-plain; charset=utf-8' },
+        });
       } catch (error) {
         log(`Error in mock handler: ${error}`);
         return new Response(JSON.stringify({ error: 'Internal server error' }), {
@@ -451,12 +451,9 @@ describe('CLI End-to-End Tests', () => {
   const API_KEY = 'test-api-key';
   const DEFAULT_ENV = { HUME_API_KEY: API_KEY };
 
-
   // Helper functions
   // Use NonNullable to ensure TypeScript knows we're accessing a valid type
-  const createSnippet = (
-    partial: Partial<Snippet>,
-  ): RawSnippet => {
+  const createSnippet = (partial: Partial<Snippet>): RawSnippet => {
     const generationId = partial.generationId ?? 'test_gen_123';
     const id = partial.id ?? `${generationId}-0`;
     return {
@@ -466,7 +463,7 @@ describe('CLI End-to-End Tests', () => {
       text: partial.text ?? 'test text',
       utterance_index: partial.utteranceIndex ?? 0,
     };
-  }
+  };
 
   // Helper to check common test failure details
   const logFailureDetails = (result: { exitCode: number; stdout: string; stderr: string }) => {
@@ -493,11 +490,10 @@ describe('CLI End-to-End Tests', () => {
   test('Basic text-to-speech with description', async () => {
     // Configure a custom response
     testEnv.configureTtsResponse({
-      snippets: [createSnippet({generationId: 'test_gen_123'})],
+      snippets: [createSnippet({ generationId: 'test_gen_123' })],
     });
 
     const outputDir = await testEnv.createOutputDir('tts-output');
-
 
     const result = await testEnv.runCliTtsCommand(
       ['Hello world', '--description', 'A friendly male voice', '--output-dir', outputDir],
@@ -529,9 +525,9 @@ describe('CLI End-to-End Tests', () => {
     // Configure a custom response with multiple generations
     testEnv.configureTtsResponse({
       snippets: [
-        createSnippet({generationId: 'multi_gen_1'}),
-        createSnippet({generationId: 'multi_gen_2'}),
-        createSnippet({generationId: 'multi_gen_3'}),
+        createSnippet({ generationId: 'multi_gen_1' }),
+        createSnippet({ generationId: 'multi_gen_2' }),
+        createSnippet({ generationId: 'multi_gen_3' }),
       ],
     });
 
@@ -573,7 +569,7 @@ describe('CLI End-to-End Tests', () => {
   test('Reading from stdin', async () => {
     // Configure a custom response
     testEnv.configureTtsResponse({
-      snippets: [createSnippet({generationId: 'stdin_gen_123'})],
+      snippets: [createSnippet({ generationId: 'stdin_gen_123' })],
     });
 
     const inputText = 'This is text from standard input';
@@ -688,9 +684,9 @@ describe('CLI End-to-End Tests', () => {
     // Configure the TTS responses for first call with 3 generations
     testEnv.configureTtsResponse({
       snippets: [
-        createSnippet({generationId: 'config_test_gen_1'}),
-        createSnippet({generationId: 'config_test_gen_2'}),
-        createSnippet({generationId: 'config_test_gen_3'}),
+        createSnippet({ generationId: 'config_test_gen_1' }),
+        createSnippet({ generationId: 'config_test_gen_2' }),
+        createSnippet({ generationId: 'config_test_gen_3' }),
       ],
     });
 
@@ -733,9 +729,7 @@ describe('CLI End-to-End Tests', () => {
 
     // Configure the TTS response for continuation
     testEnv.configureTtsResponse({
-      snippets: [
-        createSnippet({generationId: 'continuation_gen_1'})
-      ],
+      snippets: [createSnippet({ generationId: 'continuation_gen_1' })],
     });
 
     // Step 4: Run TTS with continuation using --last and --last-index

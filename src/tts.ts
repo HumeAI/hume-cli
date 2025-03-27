@@ -460,7 +460,7 @@ export class Tts {
       throw new ApiKeyNotSetError();
     }
 
-    if (opts.streaming && typeof hume.tts.synthesizeJsonStreaming === 'function') {
+    if (opts.streaming) {
       reporter.info('Using streaming mode');
       const generationIds = new Set<string>();
       const writtenFiles: Array<{ generationId: string; path: string }> = [];
@@ -472,10 +472,12 @@ export class Tts {
         let currentGenerationId: string | null = null
         for await (const snippet of await hume.tts.synthesizeJsonStreaming(tts)) {
           if (currentGenerationId !== snippet.generationId) {
+            debug(`New generation ID: ${snippet.generationId}`)
             snippetIndex = 0
             currentGenerationId = snippet.generationId
           }
           debug('Streaming snippet: %O', JSON.stringify(snippet, null, 2));
+          debug(`snippetIndex: ${snippetIndex}; currentGenerationId: ${currentGenerationId}`)
           
           // Add generation ID to the set for history
           generationIds.add(snippet.generationId);
@@ -500,6 +502,7 @@ export class Tts {
           if (opts.play !== 'off') {
             // For 'first' play option, only play snippets from the first generation ID
             if (opts.play === 'first' && !Array.from(generationIds).every(id => id === snippet.generationId)) {
+              snippetIndex++
               continue; // Skip playing this snippet as it's not from the first generation
             }
             reporter.info(`Playing snippet ${snippetIndex} of ${snippet.generationId}`);

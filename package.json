@@ -1,6 +1,6 @@
 {
   "name": "@humeai/cli",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "module": "index.ts",
   "type": "module",
   "description": "CLI for Hume.ai's OCTAVE expressive TTS API",

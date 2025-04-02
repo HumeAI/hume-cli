@@ -4,11 +4,11 @@ import { mkdir, mkdtemp, rm } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { existsSync } from 'fs';
-import type { Snippet as Snippet_ } from 'hume/serialization/resources/tts/types';
+import type { SnippetAudioChunk as SnippetAudioChunk_ } from 'hume/serialization/resources/tts/types';
 import type { Hume } from 'hume';
 
-type Snippet = Hume.tts.Snippet;
-type RawSnippet = Snippet_.Raw;
+type SnippetAudioChunk = Hume.tts.SnippetAudioChunk;
+type RawSnippetAudioChunk = SnippetAudioChunk_.Raw;
 
 // Test utility function for logging during tests
 // Only logs when BUN_TEST_VERBOSE=1 is set
@@ -200,7 +200,7 @@ class TestEnvironment {
 }
 
 interface MockTtsOptions {
-  snippets?: Array<RawSnippet>;
+  chunks?: Array<RawSnippetAudioChunk>;
   error?: {
     status: number;
     message: string;
@@ -345,8 +345,8 @@ class MockHumeServer {
         const numGenerations = body.numGenerations || 1;
 
         let snippets;
-        if (this.ttsOptions.snippets && this.ttsOptions.snippets.length > 0) {
-          snippets = this.ttsOptions.snippets;
+        if (this.ttsOptions.chunks && this.ttsOptions.chunks.length > 0) {
+          snippets = this.ttsOptions.chunks;
         } else {
           // Otherwise create default mock generations
           const mockAudio = Buffer.from('mock-audio-data').toString('base64');
@@ -453,14 +453,14 @@ describe('CLI End-to-End Tests', () => {
 
   // Helper functions
   // Use NonNullable to ensure TypeScript knows we're accessing a valid type
-  const createSnippet = (partial: Partial<Snippet>): RawSnippet => {
+  const createChunk = (partial: Partial<SnippetAudioChunk>): RawSnippetAudioChunk => {
     const generationId = partial.generationId ?? 'test_gen_123';
-    const id = partial.id ?? `${generationId}-0`;
+    const id = `${generationId}-0`;
     return {
+      chunk_index: partial.chunkIndex ?? 0,
+      is_last_chunk: partial.isLastChunk ?? true,
       generation_id: generationId,
-      id,
       audio: Buffer.from(`audio-data-${generationId}-${id}`).toString('base64'),
-      text: partial.text ?? 'test text',
       utterance_index: partial.utteranceIndex ?? 0,
     };
   };
@@ -490,7 +490,7 @@ describe('CLI End-to-End Tests', () => {
   test('Basic text-to-speech with description', async () => {
     // Configure a custom response
     testEnv.configureTtsResponse({
-      snippets: [createSnippet({ generationId: 'test_gen_123' })],
+      chunks: [createChunk({ generationId: 'test_gen_123' })],
     });
 
     const outputDir = await testEnv.createOutputDir('tts-output');
@@ -524,10 +524,10 @@ describe('CLI End-to-End Tests', () => {
   test('Multiple generations with specific format', async () => {
     // Configure a custom response with multiple generations
     testEnv.configureTtsResponse({
-      snippets: [
-        createSnippet({ generationId: 'multi_gen_1' }),
-        createSnippet({ generationId: 'multi_gen_2' }),
-        createSnippet({ generationId: 'multi_gen_3' }),
+      chunks: [
+        createChunk({ generationId: 'multi_gen_1' }),
+        createChunk({ generationId: 'multi_gen_2' }),
+        createChunk({ generationId: 'multi_gen_3' }),
       ],
     });
 
@@ -569,7 +569,7 @@ describe('CLI End-to-End Tests', () => {
   test('Reading from stdin', async () => {
     // Configure a custom response
     testEnv.configureTtsResponse({
-      snippets: [createSnippet({ generationId: 'stdin_gen_123' })],
+      chunks: [createChunk({ generationId: 'stdin_gen_123' })],
     });
 
     const inputText = 'This is text from standard input';
@@ -683,10 +683,10 @@ describe('CLI End-to-End Tests', () => {
 
     // Configure the TTS responses for first call with 3 generations
     testEnv.configureTtsResponse({
-      snippets: [
-        createSnippet({ generationId: 'config_test_gen_1' }),
-        createSnippet({ generationId: 'config_test_gen_2' }),
-        createSnippet({ generationId: 'config_test_gen_3' }),
+      chunks: [
+        createChunk({ generationId: 'config_test_gen_1' }),
+        createChunk({ generationId: 'config_test_gen_2' }),
+        createChunk({ generationId: 'config_test_gen_3' }),
       ],
     });
 
@@ -729,7 +729,7 @@ describe('CLI End-to-End Tests', () => {
 
     // Configure the TTS response for continuation
     testEnv.configureTtsResponse({
-      snippets: [createSnippet({ generationId: 'continuation_gen_1' })],
+      chunks: [createChunk({ generationId: 'continuation_gen_1' })],
     });
 
     // Step 4: Run TTS with continuation using --last and --last-index

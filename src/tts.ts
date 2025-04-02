@@ -2,7 +2,6 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { getLastSynthesisFromHistory, saveLastSynthesisToHistory } from './history';
 import { join, dirname } from 'path';
 import { assert } from 'node:console';
-import { $ } from 'bun';
 import { debug, type CommonOpts, getSettings, ApiKeyNotSetError, type Reporter } from './common';
 import type { ConfigData } from './config';
 import type { Hume } from 'hume';

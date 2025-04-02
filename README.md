@@ -53,6 +53,10 @@ $ hume tts <text>
   --json                                      Output in JSON format
   --pretty                                    Output in human-readable format
   --base-url #0                               Override the default API base URL (for testing purposes)
+  --preset-voice                              Required to use one of Hume's provided voices
+  --speed #0                                  Speaking speed multiplier (0.25-3.0, default is 1.0)
+  --trailing-silence #0                       Seconds of silence to add at the end (0.0-5.0, default is 0.35)
+  --streaming                                 Use streaming mode for TTS generation (default: true)
 
 ━━━ Details ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -86,6 +90,12 @@ Using custom audio player (Windows)
 
 Setting a custom audio player for the session
   $ hume session set tts.playCommand "vlc $AUDIO_FILE --play-and-exit"
+
+Adjusting speech speed
+  $ hume tts "I am speaking very slowly" -v narrator --speed 0.75
+
+Adding trailing silence
+  $ hume tts "Wait for it..." -v narrator --trailing-silence 3.5
 
 ━━━ See also ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   * `hume voices create --help` - Save a voice for later use

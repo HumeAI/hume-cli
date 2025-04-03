@@ -95,14 +95,14 @@ class TestEnvironment {
    * Get the list voices requests
    */
   getListVoicesRequests() {
-    return this.server.findRequestsTo('/v0/tts/voices').filter(req => req.method === 'GET');
+    return this.server.findRequestsTo('/v0/tts/voices').filter((req) => req.method === 'GET');
   }
 
   /**
    * Get the delete voice requests
    */
   getDeleteVoiceRequests() {
-    return this.server.findRequestsTo('/v0/tts/voices').filter(req => req.method === 'DELETE');
+    return this.server.findRequestsTo('/v0/tts/voices').filter((req) => req.method === 'DELETE');
   }
 
   /**
@@ -386,7 +386,7 @@ class MockHumeServer {
         });
       }
     });
-    
+
     // Add handler for voices endpoint
     this.addHandler('/v0/tts/voices', async (req) => {
       // Check if it's a GET or DELETE request
@@ -394,42 +394,42 @@ class MockHumeServer {
         // For listing voices
         const url = new URL(req.url);
         const provider = url.searchParams.get('provider') || 'CUSTOM_VOICE';
-        
+
         let voices = [];
         if (provider === 'CUSTOM_VOICE') {
           voices = [
             { id: 'custom1', name: 'my-narrator', createdAt: '2023-01-01T00:00:00Z' },
-            { id: 'custom2', name: 'my-assistant', createdAt: '2023-01-02T00:00:00Z' }
+            { id: 'custom2', name: 'my-assistant', createdAt: '2023-01-02T00:00:00Z' },
           ];
         } else {
           voices = [
             { id: 'shared1', name: 'hume-narrator', createdAt: '2023-01-01T00:00:00Z' },
             { id: 'shared2', name: 'hume-assistant', createdAt: '2023-01-02T00:00:00Z' },
-            { id: 'shared3', name: 'hume-podcaster', createdAt: '2023-01-03T00:00:00Z' }
+            { id: 'shared3', name: 'hume-podcaster', createdAt: '2023-01-03T00:00:00Z' },
           ];
         }
-        
+
         return Response.json({ data: voices });
       } else if (req.method === 'DELETE') {
         // For deleting a voice
         const url = new URL(req.url);
         const name = url.searchParams.get('name');
-        
+
         if (!name) {
           return new Response(JSON.stringify({ error: 'Missing name parameter' }), { status: 400 });
         }
-        
+
         return Response.json({ success: true });
       } else if (req.method === 'POST') {
         // For saving a voice (already implemented in the original code)
         const body = await req.json();
-        return Response.json({ 
-          id: 'new-voice-123', 
-          name: body.name, 
-          createdAt: new Date().toISOString() 
+        return Response.json({
+          id: 'new-voice-123',
+          name: body.name,
+          createdAt: new Date().toISOString(),
         });
       }
-      
+
       // Fallback
       return new Response('Method not supported', { status: 405 });
     });
@@ -828,15 +828,21 @@ describe('CLI End-to-End Tests', () => {
     expect(result.stdout).toContain('List available voices');
     expect(result.stdout).toContain('--provider');
   });
-  
+
   test('Voice list with provider option', async () => {
     // Test that the provider option is recognized
-    const result = await testEnv.runCliCommand(['voices', 'list', '--provider', 'HUME_AI', '--help']);
+    const result = await testEnv.runCliCommand([
+      'voices',
+      'list',
+      '--provider',
+      'HUME_AI',
+      '--help',
+    ]);
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain('List available voices');
     expect(result.stdout).toContain('--provider');
   });
-  
+
   test('Voice delete command structure', async () => {
     // We're only checking the command structure, not the actual API call
     const result = await testEnv.runCliCommand(['voices', 'delete', '--help']);
@@ -844,7 +850,7 @@ describe('CLI End-to-End Tests', () => {
     expect(result.stdout).toContain('Delete a saved voice');
     expect(result.stdout).toContain('--name');
   });
-  
+
   test('Error when deleting a voice without name', async () => {
     const result = await testEnv.runCliCommand(['voices', 'delete']);
     expect(result.exitCode).not.toBe(0);

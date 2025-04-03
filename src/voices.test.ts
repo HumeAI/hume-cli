@@ -8,13 +8,15 @@ describe('Voices', () => {
     tts: {
       voices: {
         create: mock(() => Promise.resolve({ name: 'test-voice', id: 'voice123' })),
-        list: mock(() => Promise.resolve({ 
-          data: [
-            { name: 'voice1', id: 'id1' },
-            { name: 'voice2', id: 'id2' }
-          ] 
-        })),
-        delete: mock(() => Promise.resolve({ success: true }))
+        list: mock(() =>
+          Promise.resolve({
+            data: [
+              { name: 'voice1', id: 'id1' },
+              { name: 'voice2', id: 'id2' },
+            ],
+          })
+        ),
+        delete: mock(() => Promise.resolve({ success: true })),
       },
     },
   } as unknown as HumeClient;
@@ -39,13 +41,15 @@ describe('Voices', () => {
   });
 
   // Mock getSettings
-  const mockGetSettings = mock(() => Promise.resolve({
-    reporter: mockReporter,
-    hume: mockHume,
-    globalConfig: {},
-    session: {},
-    env: {},
-  }));
+  const mockGetSettings = mock(() =>
+    Promise.resolve({
+      reporter: mockReporter,
+      hume: mockHume,
+      globalConfig: {},
+      session: {},
+      env: {},
+    })
+  );
 
   describe('list', () => {
     test('lists custom voices by default', async () => {
@@ -69,7 +73,7 @@ describe('Voices', () => {
       expect(mockHume.tts.voices.list).toHaveBeenCalledTimes(1);
       expect(mockHume.tts.voices.list).toHaveBeenCalledWith({ provider: 'HUME_AI' });
     });
-    
+
     // No need for the sharedVoices test as we're now using provider directly
   });
 
@@ -91,32 +95,34 @@ describe('Voices', () => {
       const voices = new Voices();
       voices.getSettings = mockGetSettings;
 
-      await voices.save({ 
-        name: 'test-voice', 
-        generationId: 'gen123'
+      await voices.save({
+        name: 'test-voice',
+        generationId: 'gen123',
       });
 
       expect(mockHume.tts.voices.create).toHaveBeenCalledTimes(1);
-      expect(mockHume.tts.voices.create).toHaveBeenCalledWith({ 
-        name: 'test-voice', 
-        generationId: 'gen123' 
+      expect(mockHume.tts.voices.create).toHaveBeenCalledWith({
+        name: 'test-voice',
+        generationId: 'gen123',
       });
     });
-    
+
     test('succeeds with --last if there is a previous synthesis with a single generation', async () => {
       const voices = new Voices();
       voices.getSettings = mockGetSettings;
       // Mock a single generation in history
-      voices.getLastSynthesis = mock(() => Promise.resolve({
-        ids: ['gen_1'],
-        timestamp: Date.now(),
-      }));
+      voices.getLastSynthesis = mock(() =>
+        Promise.resolve({
+          ids: ['gen_1'],
+          timestamp: Date.now(),
+        })
+      );
 
       await voices.save({
         name: 'test-voice',
         last: true,
       });
-      
+
       expect(mockHume.tts.voices.create).toHaveBeenCalledWith({
         name: 'test-voice',
         generationId: 'gen_1',
@@ -141,10 +147,12 @@ describe('Voices', () => {
       const voices = new Voices();
       voices.getSettings = mockGetSettings;
       // Mock multiple generations in history
-      voices.getLastSynthesis = mock(() => Promise.resolve({
-        ids: ['gen_1', 'gen_2', 'gen_3'],
-        timestamp: Date.now(),
-      }));
+      voices.getLastSynthesis = mock(() =>
+        Promise.resolve({
+          ids: ['gen_1', 'gen_2', 'gen_3'],
+          timestamp: Date.now(),
+        })
+      );
 
       await voices.save({
         name: 'test-voice',

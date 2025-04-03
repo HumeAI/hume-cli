@@ -145,22 +145,22 @@ const calculateUtterance = (opts: {
   const utterance: Hume.tts.PostedUtterance = {
     text: opts.text,
   };
-  
+
   // Determine provider - new --provider flag takes precedence over legacy --preset-voice flag
   // TODO: remove --preset-voice flag in the future
   let provider = opts.provider;
   if (!provider && opts.presetVoice) {
     provider = 'HUME_AI';
   }
-  
+
   if (opts.voiceName) {
-    utterance.voice = provider === 'HUME_AI'
-      ? { name: opts.voiceName, provider: 'HUME_AI' }
-      : { name: opts.voiceName };
+    utterance.voice =
+      provider === 'HUME_AI'
+        ? { name: opts.voiceName, provider: 'HUME_AI' }
+        : { name: opts.voiceName };
   } else if (opts.voiceId) {
-    utterance.voice = provider === 'HUME_AI'
-      ? { id: opts.voiceId, provider: 'HUME_AI' }
-      : { id: opts.voiceId };
+    utterance.voice =
+      provider === 'HUME_AI' ? { id: opts.voiceId, provider: 'HUME_AI' } : { id: opts.voiceId };
   }
   if (opts.description) {
     utterance.description = opts.description;
@@ -445,7 +445,9 @@ export class Tts {
     const opts = Tts.resolveOpts(env, globalConfig, session, rawOpts);
     const outputOpts = calculateOutputOpts(opts);
     if (opts.presetVoice) {
-      reporter.warn("Please use --provider HUME_AI instead of --preset-voice. --preset-voice will be removed in a future version");
+      reporter.warn(
+        'Please use --provider HUME_AI instead of --preset-voice. --preset-voice will be removed in a future version'
+      );
     }
 
     let text = opts.text;

@@ -284,12 +284,10 @@ class DeleteVoiceCommand extends Command {
   static usage = Command.Usage({
     description: 'Delete a saved voice',
     details: 'Permanently deletes a voice by name.',
-    examples: [
-      ['Delete a voice', 'voices delete --name my_voice'],
-    ],
+    examples: [['Delete a voice', 'voices delete --name my_voice']],
   });
 
-  name = Option.String('-n,--name', { 
+  name = Option.String('-n,--name', {
     required: true,
     description: 'Name of the voice to delete',
   });
@@ -345,18 +343,21 @@ const ttsExamples: Usage['examples'] = [
 ];
 class TtsCommand extends Command {
   static paths = [['tts']];
-  
+
   // Define custom usage with overridden usage line to control what options are shown in the summary
-  static usage = Object.assign(Command.Usage({
-    description: 'Text to speech',
-    details: `
+  static usage = Object.assign(
+    Command.Usage({
+      description: 'Text to speech',
+      details: `
       This command converts text to speech using Hume AI's advanced AI voice synthesis.
       You can specify voice characteristics through descriptions or use saved voices.
     `,
-    examples: ttsExamples,
-  }), {
-    usage: `$ hume tts <text>`,
-  });
+      examples: ttsExamples,
+    }),
+    {
+      usage: `$ hume tts <text>`,
+    }
+  );
 
   text = Option.String({ required: true, name: 'text' });
   description = Option.String('-d,--description', {
@@ -417,7 +418,7 @@ class TtsCommand extends Command {
 
   // Hidden legacy option that still works but isn't mentioned in help
   presetVoice = Option.Boolean('--preset-voice', { hidden: true });
-  
+
   provider = Option.String('--provider', {
     description: usageDescriptions['tts.provider'],
     validator: t.isEnum(['CUSTOM_VOICE', 'HUME_AI'] as const),

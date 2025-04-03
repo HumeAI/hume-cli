@@ -236,7 +236,7 @@ describe('TTS scenarios', () => {
       format: { type: 'wav' },
     });
   });
-  
+
   test('uses provider option to set provider with voiceId', async () => {
     const synthesizeJsonStreaming = mockSynthesizeJsonStreaming([snippy(1)]);
 

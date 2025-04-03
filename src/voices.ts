@@ -90,15 +90,15 @@ export class Voices {
 
     // Default to CUSTOM_VOICE (user's saved voices) if not specified
     const provider = opts.provider || 'CUSTOM_VOICE';
-    
+
     debug('List voices request with provider: %s', provider);
     const result = await reporter.withSpinner(
-      `Listing ${provider === 'HUME_AI' ? 'Hume Voice Library' : 'your custom'} voices...`, 
+      `Listing ${provider === 'HUME_AI' ? 'Hume Voice Library' : 'your custom'} voices...`,
       async () => {
         return await hume.tts.voices.list({ provider });
       }
     );
-    
+
     // The API might return voices in different structures
     // We'll handle this ambiguity by carefully accessing the result
     let voiceCount = 0;
@@ -109,7 +109,7 @@ export class Voices {
       const voicesArray = (result as any).data || (result as any).voices || [];
       voiceCount = Array.isArray(voicesArray) ? voicesArray.length : 0;
     }
-    
+
     reporter.info(`Found ${voiceCount} voices`);
     reporter.json(result);
   };
@@ -127,7 +127,7 @@ export class Voices {
     const result = await reporter.withSpinner(`Deleting voice "${opts.name}"...`, async () => {
       return await hume.tts.voices.delete({ name: opts.name });
     });
-    
+
     reporter.info(`Voice "${opts.name}" deleted successfully`);
     reporter.json(result);
   };

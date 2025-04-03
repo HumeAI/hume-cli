@@ -31,7 +31,7 @@ npm install -g @humeai/cli
 
 ## Usage
 
-```
+````
 Text to speech
 
 ━━━ Usage ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -77,7 +77,7 @@ Saving a voice you like (see `hume voices create --help`)
 
 Using a previously-saved voice
   $ hume tts "Thanks for the 100,000,000,000 likes guys!" -v influencer_1
-  
+
 Using a voice from the Hume Voice Library
   $ hume tts "Hello there" -v narrator --provider HUME_AI
 
@@ -117,7 +117,7 @@ hume voices create --name my-narrator --last
 
 # Create a voice from a specific generation ID
 hume voices create --name my-narrator --generation-id abc123
-```
+````
 
 ### Listing Voices
 
@@ -140,9 +140,13 @@ hume voices delete --name my-narrator
 ```
 
 ━━━ See also ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  * `hume voices create --help` - Save a voice for later use
-  * `hume voices list --help` - List available voices
-  * `hume voices delete --help` - Delete a saved voice
-  * `hume session --help` - Save settings temporarily so you don't have to repeat yourself
-  * `hume config --help` - Save settings more permanently
+
+- `hume voices create --help` - Save a voice for later use
+- `hume voices list --help` - List available voices
+- `hume voices delete --help` - Delete a saved voice
+- `hume session --help` - Save settings temporarily so you don't have to repeat yourself
+- `hume config --help` - Save settings more permanently
+
+```
+
 ```

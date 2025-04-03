@@ -65,6 +65,7 @@ const defaultSettings = (options?: {
       mode: 'pretty',
       json: mock(() => {}),
       info: mock(() => {}),
+      warn: mock(() => {}),
       withSpinner: mock((_message, callback) => callback()),
     },
     hume: {
@@ -359,6 +360,7 @@ describe('TTS scenarios', () => {
           mode: 'pretty',
           json: mock(() => {}),
           info: mock(() => {}),
+          warn: mock(() => {}),
           withSpinner: mock((_message, callback) => callback()),
         },
         hume: {

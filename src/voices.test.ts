@@ -24,6 +24,7 @@ describe('Voices', () => {
     mode: 'pretty',
     json: mock(() => {}),
     info: mock(() => {}),
+    warn: mock(() => {}),
     withSpinner: mock(async (_, callback) => await callback()),
   };
 

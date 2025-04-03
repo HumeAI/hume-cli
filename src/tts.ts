@@ -147,6 +147,7 @@ const calculateUtterance = (opts: {
   };
   
   // Determine provider - new --provider flag takes precedence over legacy --preset-voice flag
+  // TODO: remove --preset-voice flag in the future
   let provider = opts.provider;
   if (!provider && opts.presetVoice) {
     provider = 'HUME_AI';
@@ -443,6 +444,9 @@ export class Tts {
     const { session, globalConfig, env, reporter, hume } = await this.getSettings(rawOpts);
     const opts = Tts.resolveOpts(env, globalConfig, session, rawOpts);
     const outputOpts = calculateOutputOpts(opts);
+    if (opts.presetVoice) {
+      reporter.warn("Please use --provider HUME_AI instead of --preset-voice. --preset-voice will be removed in a future version");
+    }
 
     let text = opts.text;
     if (text === '-') {

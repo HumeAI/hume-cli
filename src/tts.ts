@@ -138,18 +138,26 @@ const calculateUtterance = (opts: {
   text: string;
   description: string | null;
   presetVoice: boolean;
+  provider?: 'CUSTOM_VOICE' | 'HUME_AI';
   speed: number | null;
   trailingSilence: number | null;
 }): Hume.tts.PostedUtterance => {
   const utterance: Hume.tts.PostedUtterance = {
     text: opts.text,
   };
+  
+  // Determine provider - new --provider flag takes precedence over legacy --preset-voice flag
+  let provider = opts.provider;
+  if (!provider && opts.presetVoice) {
+    provider = 'HUME_AI';
+  }
+  
   if (opts.voiceName) {
-    utterance.voice = opts.presetVoice
+    utterance.voice = provider === 'HUME_AI'
       ? { name: opts.voiceName, provider: 'HUME_AI' }
       : { name: opts.voiceName };
   } else if (opts.voiceId) {
-    utterance.voice = opts.presetVoice
+    utterance.voice = provider === 'HUME_AI'
       ? { id: opts.voiceId, provider: 'HUME_AI' }
       : { id: opts.voiceId };
   }
@@ -181,6 +189,7 @@ export type SynthesisOpts = CommonOpts & {
   lastIndex?: number;
   playCommand?: string;
   presetVoice?: boolean;
+  provider?: 'CUSTOM_VOICE' | 'HUME_AI';
   speed?: number;
   trailingSilence?: number;
   streaming?: boolean;
@@ -445,6 +454,7 @@ export class Tts {
       text,
       speed: opts.speed,
       trailingSilence: opts.trailingSilence,
+      provider: opts.provider,
     });
 
     const tts: Hume.tts.PostedTts = {

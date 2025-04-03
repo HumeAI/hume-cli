@@ -235,6 +235,32 @@ describe('TTS scenarios', () => {
       format: { type: 'wav' },
     });
   });
+  
+  test('uses provider option to set provider with voiceId', async () => {
+    const synthesizeJsonStreaming = mockSynthesizeJsonStreaming([snippy(1)]);
+
+    const { tts, mocks } = setupTest({
+      synthesizeJsonStreaming,
+    });
+
+    await tts.synthesize({
+      text: 'Test with provider option',
+      voiceId: 'voice_123',
+      provider: 'HUME_AI',
+      format: 'wav',
+    });
+
+    expect(synthesizeJsonStreaming).toHaveBeenCalledWith({
+      utterances: [
+        {
+          text: 'Test with provider option',
+          voice: { id: 'voice_123', provider: 'HUME_AI' },
+        },
+      ],
+      numGenerations: 1,
+      format: { type: 'wav' },
+    });
+  });
 
   test('pcm with voice ID and multiple generations', async () => {
     const synthesizeJsonStreaming = mockSynthesizeJsonStreaming([

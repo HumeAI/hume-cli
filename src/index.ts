@@ -20,7 +20,7 @@ const usageDescriptions = {
   'tts.play': 'Play audio after generation: all variations, just the first, or none',
   'tts.playCommand': 'Command to play audio files (uses $AUDIO_FILE as placeholder for file path)',
   'tts.format': 'Output audio format',
-  'tts.presetVoice': "Required to use one of Hume's provided voices",
+  'tts.provider': 'Voice provider type (CUSTOM_VOICE or HUME_AI)',
   'tts.speed': 'Speaking speed multiplier (0.25-3.0, default is 1.0)',
   'tts.trailingSilence': 'Seconds of silence to add at the end (0.0-5.0, default is 0.35)',
   'tts.streaming': 'Use streaming mode for TTS generation (default: true)',
@@ -30,7 +30,7 @@ const usageDescriptions = {
 };
 import { Tts } from './tts';
 import * as t from 'typanion';
-import { Voice } from './save_voice';
+import { Voices } from './voices';
 import {
   configValidators,
   endSession,
@@ -212,6 +212,14 @@ class GlobalConfigResetCommand extends Command {
 
 class SaveVoiceCommand extends Command {
   static paths = [['voices', 'create']];
+  static usage = Command.Usage({
+    description: 'Save a voice from a previous generation',
+    details: 'Creates a reusable voice from a previous TTS generation or a specific generation ID.',
+    examples: [
+      ['Save the most recent generation', 'voices create --name my_voice --last'],
+      ['Save a specific generation by ID', 'voices create --name narrator --generation-id abc123'],
+    ],
+  });
 
   name = Option.String('-n,--name', { required: true });
   generationId = Option.String({ required: false });
@@ -234,8 +242,71 @@ class SaveVoiceCommand extends Command {
   });
 
   async execute() {
-    const voice = new Voice();
-    await voice.save(this);
+    const voices = new Voices();
+    await voices.save(this);
+  }
+}
+
+class ListVoicesCommand extends Command {
+  static paths = [['voices', 'list']];
+  static usage = Command.Usage({
+    description: 'List available voices',
+    details: 'Lists your custom voices or the Hume Voice Library voices.',
+    examples: [
+      ['List your custom voices', 'voices list'],
+      ['List voices from the Hume Voice Library', 'voices list --provider HUME_AI'],
+    ],
+  });
+
+  provider = Option.String('--provider', {
+    description: usageDescriptions['tts.provider'],
+    validator: t.isEnum(['CUSTOM_VOICE', 'HUME_AI'] as const),
+  });
+  apiKey = Option.String('--api-key');
+  baseUrl = Option.String('--base-url', {
+    description: 'Override the default API base URL (for testing purposes)',
+  });
+  json = Option.Boolean('--json', {
+    description: usageDescriptions.json,
+  });
+  pretty = Option.Boolean('--pretty', {
+    description: usageDescriptions.pretty,
+  });
+
+  async execute() {
+    const voices = new Voices();
+    await voices.list(this);
+  }
+}
+
+class DeleteVoiceCommand extends Command {
+  static paths = [['voices', 'delete']];
+  static usage = Command.Usage({
+    description: 'Delete a saved voice',
+    details: 'Permanently deletes a voice by name.',
+    examples: [
+      ['Delete a voice', 'voices delete --name my_voice'],
+    ],
+  });
+
+  name = Option.String('-n,--name', { 
+    required: true,
+    description: 'Name of the voice to delete',
+  });
+  apiKey = Option.String('--api-key');
+  baseUrl = Option.String('--base-url', {
+    description: 'Override the default API base URL (for testing purposes)',
+  });
+  json = Option.Boolean('--json', {
+    description: usageDescriptions.json,
+  });
+  pretty = Option.Boolean('--pretty', {
+    description: usageDescriptions.pretty,
+  });
+
+  async execute() {
+    const voices = new Voices();
+    await voices.delete(this);
   }
 }
 
@@ -274,13 +345,17 @@ const ttsExamples: Usage['examples'] = [
 ];
 class TtsCommand extends Command {
   static paths = [['tts']];
-  static usage = Command.Usage({
+  
+  // Define custom usage with overridden usage line to control what options are shown in the summary
+  static usage = Object.assign(Command.Usage({
     description: 'Text to speech',
     details: `
       This command converts text to speech using Hume AI's advanced AI voice synthesis.
       You can specify voice characteristics through descriptions or use saved voices.
     `,
     examples: ttsExamples,
+  }), {
+    usage: `$ hume tts <text>`,
   });
 
   text = Option.String({ required: true, name: 'text' });
@@ -340,8 +415,12 @@ class TtsCommand extends Command {
     description: 'Override the default API base URL (for testing purposes)',
   });
 
-  presetVoice = Option.Boolean('--preset-voice', {
-    description: usageDescriptions['tts.presetVoice'],
+  // Hidden legacy option that still works but isn't mentioned in help
+  presetVoice = Option.Boolean('--preset-voice', { hidden: true });
+  
+  provider = Option.String('--provider', {
+    description: usageDescriptions['tts.provider'],
+    validator: t.isEnum(['CUSTOM_VOICE', 'HUME_AI'] as const),
   });
 
   speed = Option.String('--speed', {
@@ -382,6 +461,10 @@ class HelpCommand extends Builtins.HelpCommand {
     ${richFormat.header(`See also`)}
     
       * \`hume voices create --help\` - Save a voice for later use
+      
+      * \`hume voices list --help\` - List available voices
+      
+      * \`hume voices delete --help\` - Delete a saved voice
     
       * \`hume session --help\` - Save settings temporarily so you don't have to repeat yourself
     
@@ -411,6 +494,8 @@ cli.register(TtsCommand);
 cli.register(LoginCommand);
 cli.register(SessionRootCommand);
 cli.register(SaveVoiceCommand);
+cli.register(ListVoicesCommand);
+cli.register(DeleteVoiceCommand);
 cli.register(SessionSetCommand);
 cli.register(SessionShowCommand);
 cli.register(SessionEndCommand);

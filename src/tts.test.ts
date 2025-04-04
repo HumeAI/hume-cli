@@ -65,6 +65,7 @@ const defaultSettings = (options?: {
       mode: 'pretty',
       json: mock(() => {}),
       info: mock(() => {}),
+      warn: mock(() => {}),
       withSpinner: mock((_message, callback) => callback()),
     },
     hume: {
@@ -236,6 +237,32 @@ describe('TTS scenarios', () => {
     });
   });
 
+  test('uses provider option to set provider with voiceId', async () => {
+    const synthesizeJsonStreaming = mockSynthesizeJsonStreaming([snippy(1)]);
+
+    const { tts, mocks } = setupTest({
+      synthesizeJsonStreaming,
+    });
+
+    await tts.synthesize({
+      text: 'Test with provider option',
+      voiceId: 'voice_123',
+      provider: 'HUME_AI',
+      format: 'wav',
+    });
+
+    expect(synthesizeJsonStreaming).toHaveBeenCalledWith({
+      utterances: [
+        {
+          text: 'Test with provider option',
+          voice: { id: 'voice_123', provider: 'HUME_AI' },
+        },
+      ],
+      numGenerations: 1,
+      format: { type: 'wav' },
+    });
+  });
+
   test('pcm with voice ID and multiple generations', async () => {
     const synthesizeJsonStreaming = mockSynthesizeJsonStreaming([
       snippy(3, 0),
@@ -333,6 +360,7 @@ describe('TTS scenarios', () => {
           mode: 'pretty',
           json: mock(() => {}),
           info: mock(() => {}),
+          warn: mock(() => {}),
           withSpinner: mock((_message, callback) => callback()),
         },
         hume: {

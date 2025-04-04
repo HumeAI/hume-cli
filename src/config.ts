@@ -28,7 +28,8 @@ export type ConfigData = {
     last?: boolean;
     lastIndex?: number;
     playCommand?: string;
-    presetVoice?: boolean;
+    presetVoice?: boolean; // Hidden legacy option
+    provider?: 'CUSTOM_VOICE' | 'HUME_AI';
     speed?: number;
     trailingSilence?: number;
     streaming?: boolean;
@@ -47,7 +48,9 @@ export const configValidators = {
   'tts.play': t.isEnum(['all', 'first', 'off'] as const),
   'tts.format': t.isEnum(['wav', 'mp3', 'pcm'] as const),
   'tts.playCommand': t.isString(),
+  // Hidden but still valid for backward compatibility
   'tts.presetVoice': t.isBoolean(),
+  'tts.provider': t.isEnum(['CUSTOM_VOICE', 'HUME_AI'] as const),
   'tts.speed': t.cascade(t.isNumber(), t.isInInclusiveRange(0.25, 3.0)),
   'tts.trailingSilence': t.cascade(t.isNumber(), t.isInInclusiveRange(0.0, 5.0)),
   'tts.streaming': t.isBoolean(),

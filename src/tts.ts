@@ -138,20 +138,29 @@ const calculateUtterance = (opts: {
   text: string;
   description: string | null;
   presetVoice: boolean;
+  provider?: 'CUSTOM_VOICE' | 'HUME_AI';
   speed: number | null;
   trailingSilence: number | null;
 }): Hume.tts.PostedUtterance => {
   const utterance: Hume.tts.PostedUtterance = {
     text: opts.text,
   };
+
+  // Determine provider - new --provider flag takes precedence over legacy --preset-voice flag
+  // TODO: remove --preset-voice flag in the future
+  let provider = opts.provider;
+  if (!provider && opts.presetVoice) {
+    provider = 'HUME_AI';
+  }
+
   if (opts.voiceName) {
-    utterance.voice = opts.presetVoice
-      ? { name: opts.voiceName, provider: 'HUME_AI' }
-      : { name: opts.voiceName };
+    utterance.voice =
+      provider === 'HUME_AI'
+        ? { name: opts.voiceName, provider: 'HUME_AI' }
+        : { name: opts.voiceName };
   } else if (opts.voiceId) {
-    utterance.voice = opts.presetVoice
-      ? { id: opts.voiceId, provider: 'HUME_AI' }
-      : { id: opts.voiceId };
+    utterance.voice =
+      provider === 'HUME_AI' ? { id: opts.voiceId, provider: 'HUME_AI' } : { id: opts.voiceId };
   }
   if (opts.description) {
     utterance.description = opts.description;
@@ -181,6 +190,7 @@ export type SynthesisOpts = CommonOpts & {
   lastIndex?: number;
   playCommand?: string;
   presetVoice?: boolean;
+  provider?: 'CUSTOM_VOICE' | 'HUME_AI';
   speed?: number;
   trailingSilence?: number;
   streaming?: boolean;
@@ -434,6 +444,11 @@ export class Tts {
     const { session, globalConfig, env, reporter, hume } = await this.getSettings(rawOpts);
     const opts = Tts.resolveOpts(env, globalConfig, session, rawOpts);
     const outputOpts = calculateOutputOpts(opts);
+    if (opts.presetVoice) {
+      reporter.warn(
+        'Please use --provider HUME_AI instead of --preset-voice. --preset-voice will be removed in a future version'
+      );
+    }
 
     let text = opts.text;
     if (text === '-') {
@@ -445,6 +460,7 @@ export class Tts {
       text,
       speed: opts.speed,
       trailingSilence: opts.trailingSilence,
+      provider: opts.provider,
     });
 
     const tts: Hume.tts.PostedTts = {

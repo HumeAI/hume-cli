@@ -28,6 +28,7 @@ export interface Reporter {
   mode: string;
   json: (data: unknown) => void;
   info: (message: string) => void;
+  warn: (message: string) => void;
   withSpinner: <T>(message: string, callback: () => Promise<T>) => Promise<T>;
 }
 
@@ -54,6 +55,7 @@ export const makeReporter = (opts: { mode: 'json' | 'pretty' }): Reporter => {
       mode: opts.mode,
       json: (data) => printJson(data),
       info: () => {},
+      warn: () => {},
       withSpinner: async <T>(_: string, callback: () => Promise<T>): Promise<T> => {
         return await callback();
       },
@@ -64,6 +66,7 @@ export const makeReporter = (opts: { mode: 'json' | 'pretty' }): Reporter => {
     mode: opts.mode,
     json: () => {},
     info: (message) => clack.log.success(message),
+    warn: (message) => clack.log.warn(message),
     withSpinner: async <T>(message: string, callback: () => Promise<T>): Promise<T> => {
       spin.start(message);
       try {

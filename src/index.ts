@@ -272,6 +272,14 @@ class ListVoicesCommand extends Command {
   pretty = Option.Boolean('--pretty', {
     description: usageDescriptions.pretty,
   });
+  pageSize = Option.String('--page-size', {
+    description: 'Number of voices to display per page',
+    validator: t.isNumber(),
+  });
+  pageNumber = Option.String('--page-number', {
+    description: 'Page number to display',
+    validator: t.isNumber(),
+  });
 
   async execute() {
     const voices = new Voices();

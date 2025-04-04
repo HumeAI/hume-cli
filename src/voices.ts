@@ -1,3 +1,4 @@
+import type { ReturnVoice } from 'hume/api/resources/tts';
 import { debug, ApiKeyNotSetError, getSettings, type CommonOpts } from './common';
 import { getLastSynthesisFromHistory } from './history';
 
@@ -13,6 +14,8 @@ type RawSaveVoiceOpts = CommonOpts & {
 /** Represents the raw options passed from the command line for listing voices */
 type RawListVoicesOpts = CommonOpts & {
   provider?: 'CUSTOM_VOICE' | 'HUME_AI';
+  pageSize?: number;
+  pageNumber?: number;
 };
 
 /** Represents the raw options passed from the command line for deleting a voice */
@@ -83,6 +86,7 @@ export class Voices {
    * Default provider is CUSTOM_VOICE (user-created voices)
    */
   public list = async (opts: RawListVoicesOpts) => {
+    const {pageSize, pageNumber} = opts;
     const { reporter, hume } = await this.getSettings(opts);
     if (!hume) {
       throw new ApiKeyNotSetError();
@@ -95,23 +99,22 @@ export class Voices {
     const result = await reporter.withSpinner(
       `Listing ${provider === 'HUME_AI' ? 'Hume Voice Library' : 'your custom'} voices...`,
       async () => {
-        return await hume.tts.voices.list({ provider });
+        return await hume.tts.voices.list({ provider, pageSize, pageNumber});
       }
     );
 
-    // The API might return voices in different structures
-    // We'll handle this ambiguity by carefully accessing the result
-    let voiceCount = 0;
-    if (Array.isArray(result)) {
-      voiceCount = result.length;
-    } else if (result && typeof result === 'object') {
-      // Try to get the voices array from likely properties
-      const voicesArray = (result as any).data || (result as any).voices || [];
-      voiceCount = Array.isArray(voicesArray) ? voicesArray.length : 0;
+
+    reporter.json(result.data.map((voice: ReturnVoice) => ({
+      id: voice.id,
+      name: voice.name,
+    })));
+    for (const voice of result.data) {
+      reporter.info(`${voice.name} (${voice.id})`);
     }
 
-    reporter.info(`Found ${voiceCount} voices`);
-    reporter.json(result);
+    if (result.hasNextPage()) {
+      reporter.info(`There are more voices available. Use --page-number ${(pageNumber ?? 0) + 1} to retrieve them.`)
+    }
   };
 
   /**

@@ -1,15 +1,16 @@
 import { describe, test, expect, mock, beforeEach } from 'bun:test';
 import { Voices } from './voices';
 import { HumeClient } from 'hume';
+import { type Page } from 'hume/core';
 
 describe('Voices', () => {
-  // Mock the HumeClient
   const mockHume = {
     tts: {
       voices: {
         create: mock(() => Promise.resolve({ name: 'test-voice', id: 'voice123' })),
-        list: mock(() =>
+        list: mock((): Promise<Partial<Page<unknown>>> =>
           Promise.resolve({
+            hasNextPage: () => true,
             data: [
               { name: 'voice1', id: 'id1' },
               { name: 'voice2', id: 'id2' },
@@ -24,9 +25,9 @@ describe('Voices', () => {
   // Mock reporter
   const mockReporter = {
     mode: 'pretty',
-    json: mock(() => {}),
-    info: mock(() => {}),
-    warn: mock(() => {}),
+    json: mock((_: unknown) => { }),
+    info: mock((_: string) => { }),
+    warn: mock((_: string) => { }),
     withSpinner: mock(async (_, callback) => await callback()),
   };
 
@@ -60,7 +61,11 @@ describe('Voices', () => {
 
       expect(mockHume.tts.voices.list).toHaveBeenCalledTimes(1);
       expect(mockHume.tts.voices.list).toHaveBeenCalledWith({ provider: 'CUSTOM_VOICE' });
-      expect(mockReporter.info).toHaveBeenCalledWith('Found 2 voices');
+      expect(mockReporter.info.mock.calls).toEqual([
+        ['voice1 (id1)'],
+        ['voice2 (id2)'],
+        ['There are more voices available. Use --page-number 1 to retrieve them.'],
+      ]);
       expect(mockReporter.json).toHaveBeenCalledTimes(1);
     });
 

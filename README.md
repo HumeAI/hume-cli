@@ -16,6 +16,9 @@ hume login
 hume tts "Are you serious?" --description "whispered, hushed"
 hume voices create --name whisperer --last
 hume tts "I said, are you serious?" --voice-name whisperer
+hume voices list  # View your saved voices
+hume voices list --provider HUME_AI  # View Hume's voice library
+hume voices delete --name whisperer  # Delete a voice when no longer needed
 ```
 
 ## Installation
@@ -28,7 +31,6 @@ npm install -g @humeai/cli
 
 ## Usage
 
-```
 Text to speech
 
 ━━━ Usage ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -53,7 +55,7 @@ $ hume tts <text>
   --json                                      Output in JSON format
   --pretty                                    Output in human-readable format
   --base-url #0                               Override the default API base URL (for testing purposes)
-  --preset-voice                              Required to use one of Hume's provided voices
+  --provider #0                               Voice provider type (CUSTOM_VOICE or HUME_AI)
   --speed #0                                  Speaking speed multiplier (0.25-3.0, default is 1.0)
   --trailing-silence #0                       Seconds of silence to add at the end (0.0-5.0, default is 0.35)
   --streaming                                 Use streaming mode for TTS generation (default: true)
@@ -74,6 +76,9 @@ Saving a voice you like (see `hume voices create --help`)
 
 Using a previously-saved voice
   $ hume tts "Thanks for the 100,000,000,000 likes guys!" -v influencer_1
+
+Using a voice from the Hume Voice Library
+  $ hume tts "Hello there" -v narrator --provider HUME_AI
 
 Reading from stdin
   $ echo "I wouldn't be here without you" | hume tts - -v influencer_1
@@ -97,8 +102,50 @@ Adjusting speech speed
 Adding trailing silence
   $ hume tts "Wait for it..." -v narrator --trailing-silence 3.5
 
+## Voice Management
+
+The CLI provides commands to manage your custom voices:
+
+### Creating Voices
+
+Save a voice from a previous generation:
+
+```shell
+# Create a voice from the last generation
+hume voices create --name my-narrator --last
+
+# Create a voice from a specific generation ID
+hume voices create --name my-narrator --generation-id abc123
+````
+
+### Listing Voices
+
+List your custom voices:
+
+```shell
+# List your custom voices
+hume voices list
+
+# List voices from the Hume Voice Library
+hume voices list --provider HUME_AI
+```
+
+### Deleting Voices
+
+Delete a voice by name:
+
+```shell
+hume voices delete --name my-narrator
+```
+
 ━━━ See also ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  * `hume voices create --help` - Save a voice for later use
-  * `hume session --help` - Save settings temporarily so you don't have to repeat yourself
-  * `hume config --help` - Save settings more permanently
+
+- `hume voices create --help` - Save a voice for later use
+- `hume voices list --help` - List available voices
+- `hume voices delete --help` - Delete a saved voice
+- `hume session --help` - Save settings temporarily so you don't have to repeat yourself
+- `hume config --help` - Save settings more permanently
+
+```
+
 ```

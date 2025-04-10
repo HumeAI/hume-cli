@@ -31,6 +31,7 @@ npm install -g @humeai/cli
 
 ## Usage
 
+```
 Text to speech
 
 ━━━ Usage ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -39,26 +40,26 @@ $ hume tts <text>
 
 ━━━ Options ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  -d,--description #0                         Description of the desired voice
-  -c,--continue,--context-generation-id #0    Previous generation ID for continuation
-  -l,--last,--continue-from-last              Use a generation from a previous synthesis as context. If the last synthesis was created with --num-generations > 1, you must also provide --last-index
-  --last-index #0                             Index of the generation to use from the previous synthesis.
-  -o,--output-dir #0                          Output directory for generated audio files
-  -n,--num-generations #0                     Number of variations to generate
-  -p,--prefix #0                              Filename prefix for generated audio
-  --play #0                                   Play audio after generation: all variations, just the first, or none
-  --play-command #0                           Command to play audio files (uses $AUDIO_FILE as placeholder for file path)
-  --api-key #0                                Override the default API key
-  --format #0                                 Output audio format
-  -v,--voice-name #0                          Name of a previously saved voice
-  --voice-id #0                               Direct voice ID to use
-  --json                                      Output in JSON format
-  --pretty                                    Output in human-readable format
-  --base-url #0                               Override the default API base URL (for testing purposes)
-  --provider #0                               Voice provider type (CUSTOM_VOICE or HUME_AI)
-  --speed #0                                  Speaking speed multiplier (0.25-3.0, default is 1.0)
-  --trailing-silence #0                       Seconds of silence to add at the end (0.0-5.0, default is 0.35)
-  --streaming                                 Use streaming mode for TTS generation (default: true)
+-d,--description #0 Description of the desired voice
+-c,--continue,--context-generation-id #0 Previous generation ID for continuation
+-l,--last,--continue-from-last Use a generation from a previous synthesis as context. If the last synthesis was created with --num-generations > 1, you must also provide --last-index
+--last-index #0 Index of the generation to use from the previous synthesis.
+-o,--output-dir #0 Output directory for generated audio files
+-n,--num-generations #0 Number of variations to generate
+-p,--prefix #0 Filename prefix for generated audio
+--play #0 Play audio after generation: all variations, just the first, or none
+--play-command #0 Command to play audio files (uses $AUDIO_FILE as placeholder for file path)
+--api-key #0 Override the default API key
+--format #0 Output audio format
+-v,--voice-name #0 Name of a previously saved voice
+--voice-id #0 Direct voice ID to use
+--json Output in JSON format
+--pretty Output in human-readable format
+--base-url #0 Override the default API base URL (for testing purposes)
+--provider #0 Voice provider type (CUSTOM_VOICE or HUME_AI)
+--speed #0 Speaking speed multiplier (0.25-3.0, default is 1.0)
+--trailing-silence #0 Seconds of silence to add at the end (0.0-5.0, default is 0.35)
+--streaming Use streaming mode for TTS generation (default: true)
 
 ━━━ Details ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -69,74 +70,59 @@ saved voices.
 ━━━ Examples ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Basic usage
-  $ hume tts "Make sure to like and subscribe!" --description "The speaker is a charismatic, enthusiastic, male YouTuber in his 20s with a American accent, a slightly breathy voice, and a fast speaking rate."
+$ hume tts "Make sure to like and subscribe!" --description "The speaker is a charismatic, enthusiastic, male YouTuber in his 20s with a American accent, a slightly breathy voice, and a fast speaking rate."
 
 Saving a voice you like (see `hume voices create --help`)
-  $ hume voices create --name influencer_1 --last
+$ hume voices create --name influencer_1 --last
 
 Using a previously-saved voice
-  $ hume tts "Thanks for the 100,000,000,000 likes guys!" -v influencer_1
+$ hume tts "Thanks for the 100,000,000,000 likes guys!" -v influencer_1
 
 Using a voice from the Hume Voice Library
-  $ hume tts "Hello there" -v narrator --provider HUME_AI
+$ hume tts "Hello there" -v narrator --provider HUME_AI
 
 Reading from stdin
-  $ echo "I wouldn't be here without you" | hume tts - -v influencer_1
+$ echo "I wouldn't be here without you" | hume tts - -v influencer_1
 
 Continuing previous text
-  $ hume tts "Take some arrows from the quiver" -v influencer_1
-  $ hume tts "Take a bow, too" -v influencer_1 --last # should rhyme with 'toe' not 'cow'
+$ hume tts "Take some arrows from the quiver" -v influencer_1
+$ hume tts "Take a bow, too" -v influencer_1 --last # should rhyme with 'toe' not 'cow'
 
 Using custom audio player (macOS/Linux)
-  $ hume tts "Hello world" -v narrator --play-command "mpv $AUDIO_FILE --no-video"
+$ hume tts "Hello world" -v narrator --play-command "mpv $AUDIO_FILE --no-video"
 
 Using custom audio player (Windows)
-  $ hume tts "Hello world" -v narrator --play-command "powershell -c \"[System.Media.SoundPlayer]::new('$AUDIO_FILE').PlaySync()\""
+$ hume tts "Hello world" -v narrator --play-command "powershell -c \"[System.Media.SoundPlayer]::new('$AUDIO_FILE').PlaySync()\""
 
 Setting a custom audio player for the session
-  $ hume session set tts.playCommand "vlc $AUDIO_FILE --play-and-exit"
+$ hume session set tts.playCommand "vlc $AUDIO_FILE --play-and-exit"
 
 Adjusting speech speed
-  $ hume tts "I am speaking very slowly" -v narrator --speed 0.75
+$ hume tts "I am speaking very slowly" -v narrator --speed 0.75
 
 Adding trailing silence
-  $ hume tts "Wait for it..." -v narrator --trailing-silence 3.5
+$ hume tts "Wait for it..." -v narrator --trailing-silence 3.5
 
 ## Voice Management
 
-The CLI provides commands to manage your custom voices:
+Save a voice from a previous generation
+$ hume voices create --name my-narrator --last
 
-### Creating Voices
-
-Save a voice from a previous generation:
-
-```shell
-# Create a voice from the last generation
-hume voices create --name my-narrator --last
-
-# Create a voice from a specific generation ID
-hume voices create --name my-narrator --generation-id abc123
-````
+Create a voice from a specific generation ID
+$ hume voices create --name my-narrator --generation-id abc123
 
 ### Listing Voices
 
-List your custom voices:
+List your custom voices
+$ hume voices list
 
-```shell
-# List your custom voices
-hume voices list
-
-# List voices from the Hume Voice Library
-hume voices list --provider HUME_AI
-```
+List voices from the Hume Voice Library
+$ hume voices list --provider HUME_AI
 
 ### Deleting Voices
 
-Delete a voice by name:
-
-```shell
-hume voices delete --name my-narrator
-```
+Delete a voice by name
+$ hume voices delete --name my-narrator
 
 ━━━ See also ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -145,7 +131,4 @@ hume voices delete --name my-narrator
 - `hume voices delete --help` - Delete a saved voice
 - `hume session --help` - Save settings temporarily so you don't have to repeat yourself
 - `hume config --help` - Save settings more permanently
-
-```
-
 ```

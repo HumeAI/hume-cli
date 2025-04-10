@@ -8,14 +8,15 @@ describe('Voices', () => {
     tts: {
       voices: {
         create: mock(() => Promise.resolve({ name: 'test-voice', id: 'voice123' })),
-        list: mock((): Promise<Partial<Page<unknown>>> =>
-          Promise.resolve({
-            hasNextPage: () => true,
-            data: [
-              { name: 'voice1', id: 'id1' },
-              { name: 'voice2', id: 'id2' },
-            ],
-          })
+        list: mock(
+          (): Promise<Partial<Page<unknown>>> =>
+            Promise.resolve({
+              hasNextPage: () => true,
+              data: [
+                { name: 'voice1', id: 'id1' },
+                { name: 'voice2', id: 'id2' },
+              ],
+            })
         ),
         delete: mock(() => Promise.resolve({ success: true })),
       },
@@ -25,9 +26,9 @@ describe('Voices', () => {
   // Mock reporter
   const mockReporter = {
     mode: 'pretty',
-    json: mock((_: unknown) => { }),
-    info: mock((_: string) => { }),
-    warn: mock((_: string) => { }),
+    json: mock((_: unknown) => {}),
+    info: mock((_: string) => {}),
+    warn: mock((_: string) => {}),
     withSpinner: mock(async (_, callback) => await callback()),
   };
 

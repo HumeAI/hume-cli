@@ -86,7 +86,7 @@ export class Voices {
    * Default provider is CUSTOM_VOICE (user-created voices)
    */
   public list = async (opts: RawListVoicesOpts) => {
-    const {pageSize, pageNumber} = opts;
+    const { pageSize, pageNumber } = opts;
     const { reporter, hume } = await this.getSettings(opts);
     if (!hume) {
       throw new ApiKeyNotSetError();
@@ -99,21 +99,24 @@ export class Voices {
     const result = await reporter.withSpinner(
       `Listing ${provider === 'HUME_AI' ? 'Hume Voice Library' : 'your custom'} voices...`,
       async () => {
-        return await hume.tts.voices.list({ provider, pageSize, pageNumber});
+        return await hume.tts.voices.list({ provider, pageSize, pageNumber });
       }
     );
 
-
-    reporter.json(result.data.map((voice: ReturnVoice) => ({
-      id: voice.id,
-      name: voice.name,
-    })));
+    reporter.json(
+      result.data.map((voice: ReturnVoice) => ({
+        id: voice.id,
+        name: voice.name,
+      }))
+    );
     for (const voice of result.data) {
       reporter.info(`${voice.name} (${voice.id})`);
     }
 
     if (result.hasNextPage()) {
-      reporter.info(`There are more voices available. Use --page-number ${(pageNumber ?? 0) + 1} to retrieve them.`)
+      reporter.info(
+        `There are more voices available. Use --page-number ${(pageNumber ?? 0) + 1} to retrieve them.`
+      );
     }
   };
 

@@ -400,6 +400,9 @@ export class Tts {
       format: { type: opts.format },
     };
 
+    // First add context to support continuation
+    await this.maybeAddContext(opts, tts);
+
     // Validate instant_mode requirements
     if (opts.instantMode) {
       if (!opts.streaming) {
@@ -408,13 +411,11 @@ export class Tts {
       if (outputOpts.numGenerations !== 1) {
         throw new Error('Instant mode requires num_generations=1');
       }
-      if (!utterance.voice) {
-        throw new Error('Instant mode requires a voice to be specified (use --voice-name or --voice-id)');
+      if (!utterance.voice && !tts.context) {
+        throw new Error('Instant mode requires a voice to be specified (use --voice-name, --voice-id, --last, or --continue)');
       }
       tts.instantMode = true;
     }
-
-    await this.maybeAddContext(opts, tts);
 
     if (!hume) {
       throw new ApiKeyNotSetError();

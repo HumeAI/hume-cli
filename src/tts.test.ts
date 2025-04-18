@@ -719,6 +719,38 @@ describe('instant mode functionality', () => {
         streaming: true,
         instantMode: true,
       })
-    ).rejects.toThrow('Instant mode requires a voice to be specified (use --voice-name or --voice-id)');
+    ).rejects.toThrow('Instant mode requires a voice to be specified (use --voice-name, --voice-id, --last, or --continue)');
+  });
+
+  test('allows instant mode with --last option', async () => {
+    const lastGeneration = {
+      ids: ['gen_1'],
+      timestamp: Date.now(),
+    };
+
+    const synthesizeJsonStreaming = mockSynthesizeJsonStreaming([snippy(10)]);
+
+    const { tts } = setupTest({
+      getLastSynthesis: mock(() => Promise.resolve(lastGeneration)),
+      synthesizeJsonStreaming,
+    });
+
+    await tts.synthesize({
+      text: 'Hello world',
+      last: true,
+      streaming: true,
+      instantMode: true,
+    });
+
+    expect(synthesizeJsonStreaming.mock.calls).toEqual([
+      [
+        expect.objectContaining({
+          context: { generationId: 'gen_1' },
+          instantMode: true,
+          numGenerations: 1,
+          stripHeaders: true,
+        }),
+      ],
+    ]);
   });
 });

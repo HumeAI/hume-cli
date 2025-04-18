@@ -408,6 +408,9 @@ export class Tts {
       if (outputOpts.numGenerations !== 1) {
         throw new Error('Instant mode requires num_generations=1');
       }
+      if (!utterance.voice) {
+        throw new Error('Instant mode requires a voice to be specified (use --voice-name or --voice-id)');
+      }
       tts.instantMode = true;
     }
 

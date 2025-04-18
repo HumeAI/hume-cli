@@ -663,6 +663,7 @@ describe('instant mode functionality', () => {
       text: 'Test instant mode',
       streaming: true,
       instantMode: true,
+      voiceName: 'test_voice', // Add voice name to satisfy validation
     });
 
     // Verify synthesizeJsonStreaming was called with instantMode set to true
@@ -672,6 +673,13 @@ describe('instant mode functionality', () => {
           instantMode: true,
           numGenerations: 1,
           stripHeaders: true,
+          utterances: [
+            expect.objectContaining({
+              voice: expect.objectContaining({
+                name: 'test_voice'
+              })
+            })
+          ]
         }),
       ],
     ]);
@@ -700,5 +708,17 @@ describe('instant mode functionality', () => {
         numGenerations: 2,
       })
     ).rejects.toThrow('Instant mode requires num_generations=1');
+  });
+
+  test('throws error when instantMode is enabled without a voice', async () => {
+    const { tts } = setupTest();
+
+    await expect(
+      tts.synthesize({
+        text: 'Test instant mode without voice',
+        streaming: true,
+        instantMode: true,
+      })
+    ).rejects.toThrow('Instant mode requires a voice to be specified (use --voice-name or --voice-id)');
   });
 });

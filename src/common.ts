@@ -121,8 +121,6 @@ export const getSettings = async (
 };
 
 export const getHumeClient = (opts: { apiKey: string; baseUrl?: string }) => {
-  const environment = opts.baseUrl || 'https://test-api.hume.ai';
-  debug('Creating HumeClient with environment: %s', environment);
   return new HumeClient({
     apiKey: opts.apiKey,
     environment: opts.baseUrl ?? 'https://api.hume.ai',

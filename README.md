@@ -60,6 +60,7 @@ $ hume tts <text>
 --speed #0 Speaking speed multiplier (0.25-3.0, default is 1.0)
 --trailing-silence #0 Seconds of silence to add at the end (0.0-5.0, default is 0.35)
 --streaming Use streaming mode for TTS generation (default: true)
+--instant-mode Enable ultra-low latency mode for significantly faster generation (requires streaming=true, a voice, and incurs 10% higher cost)
 
 ━━━ Details ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -102,6 +103,12 @@ $ hume tts "I am speaking very slowly" -v narrator --speed 0.75
 
 Adding trailing silence
 $ hume tts "Wait for it..." -v narrator --trailing-silence 3.5
+
+Using instant mode for ultra-low latency
+$ hume tts "Hello world" -v narrator --instant-mode
+
+Setting instant mode in your config (always enable)
+$ hume config set tts.instantMode true
 
 ## Voice Management
 

@@ -4,87 +4,8 @@ import { join, dirname } from 'path';
 import { assert } from 'node:console';
 import { debug, type CommonOpts, getSettings, ApiKeyNotSetError, type Reporter } from './common';
 import type { ConfigData } from './config';
-import type { Hume } from 'hume';
-
-const findAudioPlayer = (customCommand?: string): string | null => {
-  if (customCommand) {
-    return customCommand;
-  }
-
-  const isWindows = process.platform === 'win32';
-
-  // List of popular CLI audio players, in order of preference
-  // Include Windows-specific options first when on Windows
-  const commonPlayers = isWindows
-    ? [
-        { cmd: 'powershell', args: `-c "(New-Object Media.SoundPlayer '$AUDIO_FILE').PlaySync()"` },
-        { cmd: 'ffplay', args: '-nodisp -autoexit' },
-        { cmd: 'mpv', args: '--no-video' },
-        { cmd: 'mplayer', args: '' },
-      ]
-    : [
-        { cmd: 'ffplay', args: '-nodisp -autoexit' },
-        { cmd: 'afplay', args: '' }, // macOS
-        { cmd: 'mplayer', args: '' },
-        { cmd: 'mpv', args: '--no-video' },
-        { cmd: 'aplay', args: '' }, // Linux
-        { cmd: 'play', args: '' }, // SoX
-      ];
-
-  for (const player of commonPlayers) {
-    try {
-      // Quick check if command exists in PATH
-      // Use "where" on Windows, "which" on other platforms
-      const checkCmd = isWindows ? 'where' : 'which';
-      Bun.spawnSync([checkCmd, player.cmd]);
-
-      return player.args
-        ? `${player.cmd} ${player.args.includes('$AUDIO_FILE') ? player.args : '$AUDIO_FILE ' + player.args}`.trim()
-        : `${player.cmd} $AUDIO_FILE`;
-    } catch (e) {
-      // Command not found, try next one
-      continue;
-    }
-  }
-
-  return null;
-};
-
-const playAudio = (path: string, playCommand?: string): Promise<unknown> => {
-  const command = findAudioPlayer(playCommand);
-  const isWindows = process.platform === 'win32';
-
-  if (!command) {
-    throw new Error(
-      'No audio player found. Please install ffplay or specify a custom player with --play-command'
-    );
-  }
-
-  // Replace template variable with actual path
-  // Ensure path is properly quoted for Windows paths with spaces
-  const sanitizedPath = isWindows ? path.replace(/\\/g, '\\\\') : path;
-  const finalCommand = command.replace('$AUDIO_FILE', sanitizedPath);
-
-  // If using PowerShell on Windows, handle it specially
-  if (isWindows && finalCommand.startsWith('powershell')) {
-    // For PowerShell, we need to be careful with argument passing
-    return Bun.spawn(['powershell', '-c', finalCommand.substring('powershell -c '.length)], {
-      stdout: 'ignore',
-      stderr: 'ignore',
-    }).exited;
-  }
-
-  // Split into command and args for proper execution
-  // This splitting is tricky with quotes, so we'll do a simple version that works for most cases
-  const parts = finalCommand.split(' ');
-  const cmd = parts[0];
-  const args = parts.slice(1).filter((arg) => arg.length > 0);
-
-  return Bun.spawn([cmd, ...args], {
-    stdout: 'ignore',
-    stderr: 'ignore',
-  }).exited;
-};
+import type { Hume, HumeClient } from 'hume';
+import { playAudioFile, withStdinAudioPlayer } from './play_audio';
 
 type SynthesisOutputOpts =
   | {
@@ -194,6 +115,7 @@ export type SynthesisOpts = CommonOpts & {
   speed?: number;
   trailingSilence?: number;
   streaming?: boolean;
+  instantMode?: boolean;
 };
 
 export class Tts {
@@ -203,7 +125,9 @@ export class Tts {
     await writeFile(path, data);
   };
   getSettings = getSettings;
-  playAudio = playAudio;
+  playAudioFile = playAudioFile;
+  withStdinAudioPlayer = withStdinAudioPlayer;
+
   getStdin = () => process.stdin;
 
   private static defaults = {
@@ -224,6 +148,7 @@ export class Tts {
     speed: null,
     trailingSilence: null,
     streaming: true,
+    instantMode: false,
   };
 
   private async writeFiles(
@@ -302,26 +227,30 @@ export class Tts {
 
   private async playAudios(
     play: 'all' | 'first' | 'off',
-    paths: Array<string>,
+    files: Array<{ path: string }>,
     reporter: Reporter,
-    playCommand?: string
+    playCommand: string | null
   ) {
     if (play === 'off') {
       return;
     }
     if (play === 'first') {
-      await reporter.withSpinner(`Playing audio ${paths[0]}`, async () => {
-        await this.playAudio(paths[0], playCommand);
+      const file = files[0];
+      await reporter.withSpinner(`Playing audio ${file.path}`, async () => {
+        await this.playAudioFile(file.path, playCommand);
       });
       return;
     }
     if (play === 'all') {
-      const n = paths.length;
-      for (const i in paths) {
-        const path = paths[i];
-        await reporter.withSpinner(`Playing audio ${path} (${Number(i) + 1} of ${n})`, async () => {
-          await this.playAudio(path, playCommand);
-        });
+      const n = files.length;
+      for (const i in files) {
+        const file = files[i];
+        await reporter.withSpinner(
+          `Playing audio ${file.path} (${Number(i) + 1} of ${n})`,
+          async () => {
+            await this.playAudioFile(file.path, playCommand);
+          }
+        );
       }
       return;
     }
@@ -386,6 +315,7 @@ export class Tts {
     const speed = osgd('speed').item;
     const trailingSilence = osgd('trailingSilence').item;
     const streaming = osgd('streaming').item;
+    const instantMode = osgd('instantMode').item;
 
     // VoiceId and voiceName are mutually exclusive within opts, but
     // not across layers. VoiceId defined with greater priority should
@@ -421,6 +351,7 @@ export class Tts {
       speed,
       trailingSilence,
       streaming,
+      instantMode,
     };
   }
 
@@ -469,92 +400,138 @@ export class Tts {
       format: { type: opts.format },
     };
 
+    // First add context to support continuation
     await this.maybeAddContext(opts, tts);
+
+    // Validate instant_mode requirements
+    if (opts.instantMode) {
+      if (!opts.streaming) {
+        throw new Error('Instant mode requires streaming to be enabled');
+      }
+      if (outputOpts.numGenerations !== 1) {
+        throw new Error('Instant mode requires num_generations=1');
+      }
+      if (!utterance.voice && !tts.context) {
+        throw new Error(
+          'Instant mode requires a voice to be specified (use --voice-name, --voice-id, --last, or --continue)'
+        );
+      }
+      tts.instantMode = true;
+    }
 
     if (!hume) {
       throw new ApiKeyNotSetError();
     }
 
     if (opts.streaming) {
-      reporter.info('Using streaming mode');
-      const generationIds = new Set<string>();
-      const writtenFiles: Array<{ generationId: string; path: string }> = [];
+      return this.synthesizeStreaming(reporter, tts, hume, opts, outputOpts);
+    }
+    return this.synthesizeBuffered(reporter, tts, hume, opts, outputOpts);
+  }
 
-      debug('Request payload: %O', JSON.stringify(tts, null, 2));
+  async synthesizeStreaming(
+    reporter: Reporter,
+    tts: Hume.tts.PostedTts,
+    hume: HumeClient,
+    opts: ReturnType<typeof Tts.resolveOpts>,
+    outputOpts: SynthesisOutputOpts
+  ) {
+    tts.stripHeaders = true;
+    reporter.info('Using streaming mode');
 
+    // Map to collect all audio chunks for each generation
+    const generationAudio: Map<string, Array<Buffer>> = new Map();
+
+    debug('Request payload: %O', JSON.stringify(tts, null, 2));
+
+    const go = async (writeAudio: (audioBuffer: Buffer) => void) => {
       await reporter.withSpinner('Synthesizing...', async () => {
-        let snippetIndex = 0;
-        let currentGenerationId: string | null = null;
-        for await (const snippet of await hume.tts.synthesizeJsonStreaming(tts)) {
-          if (currentGenerationId !== snippet.generationId) {
-            debug(`New generation ID: ${snippet.generationId}`);
-            snippetIndex = 0;
-            currentGenerationId = snippet.generationId;
+        let firstGenerationId = null;
+        for await (const chunk of await hume.tts.synthesizeJsonStreaming(tts)) {
+          debug('chunk');
+          if (!firstGenerationId) {
+            firstGenerationId = chunk.generationId;
           }
-          debug('Streaming snippet: %O', JSON.stringify(snippet, null, 2));
-          debug(`snippetIndex: ${snippetIndex}; currentGenerationId: ${currentGenerationId}`);
-
-          // Add generation ID to the set for history
-          generationIds.add(snippet.generationId);
-
-          const path =
-            outputOpts.type === 'path'
-              ? `${outputOpts.path}.${snippetIndex}`
-              : join(
-                  outputOpts.dir,
-                  `${outputOpts.prefix}${snippet.generationId}.${snippetIndex}.${outputOpts.format}`
-                );
-
-          await this.ensureDirAndWriteFile(path, Buffer.from(snippet.audio, 'base64'));
-
-          writtenFiles.push({
-            generationId: snippet.generationId,
-            path,
-          });
-
-          // Log the generation ID for the first snippet
-          if (snippetIndex === 0) {
-            reporter.info(`Generation ID: ${snippet.generationId}`);
+          if (!chunk.audio || chunk.audio.length === 0) {
+            debug('Skipping empty audio snippet');
+            continue;
           }
 
-          // Play the audio if requested
-          if (opts.play !== 'off') {
-            // For 'first' play option, only play snippets from the first generation ID
-            if (
-              opts.play === 'first' &&
-              !Array.from(generationIds).every((id) => id === snippet.generationId)
-            ) {
-              snippetIndex++;
-              continue; // Skip playing this snippet as it's not from the first generation
-            }
-            reporter.info(`Playing snippet ${snippetIndex} of ${snippet.generationId}`);
-            await this.playAudio(path, opts.playCommand);
+          const audioBuffer = Buffer.from(chunk.audio, 'base64');
+
+          // Store audio chunk for the full generation file
+          if (!generationAudio.has(chunk.generationId)) {
+            generationAudio.set(chunk.generationId, []);
           }
-          snippetIndex++;
+          generationAudio.get(chunk.generationId)?.push(audioBuffer);
+
+          if (opts.play === 'first' && chunk.generationId !== firstGenerationId) {
+            debug('Skipping audio playback for non-first generation');
+            continue;
+          }
+          debug('Writing audio chunk');
+          writeAudio(audioBuffer);
         }
       });
+    };
 
-      // Save generation IDs for history/continuation
-      await this.saveLastSynthesis({
-        ids: Array.from(generationIds),
-        timestamp: Date.now(),
-      });
-
-      // Log the written files
-      if (writtenFiles.length === 1) {
-        reporter.info(`Wrote ${writtenFiles[0].path}`);
-      } else {
-        reporter.info(`Wrote ${['', ...writtenFiles.map(({ path }) => path)].join('\n  ')}`);
-      }
-
-      reporter.json({
-        writtenFiles,
-        generationIds: Array.from(generationIds),
-      });
-
-      return;
+    if (opts.play !== 'off') {
+      await this.withStdinAudioPlayer(opts.playCommand ?? null, go);
+    } else {
+      const noopWriteAudio = () => {};
+      await go(noopWriteAudio);
     }
 
+    // Write full generation files
+    const writtenFiles: Array<{ generationId: string; path: string }> = [];
+
+    for (const [generationId, audioChunks] of generationAudio.entries()) {
+      // Concatenate all audio chunks
+      const fullAudio = Buffer.concat(audioChunks);
+
+      // Determine the path for the full generation
+      const fullPath =
+        outputOpts.type === 'path'
+          ? outputOpts.path
+          : join(outputOpts.dir, `${outputOpts.prefix}${generationId}.${outputOpts.format}`);
+
+      // Write the full generation file
+      await this.ensureDirAndWriteFile(fullPath, fullAudio);
+
+      writtenFiles.push({
+        generationId,
+        path: fullPath,
+      });
+    }
+
+    // Save generation IDs for history/continuation
+    await this.saveLastSynthesis({
+      ids: Array.from(generationAudio.keys()),
+      timestamp: Date.now(),
+    });
+
+    // Log the written files
+    if (writtenFiles.length === 1) {
+      reporter.info(`Wrote ${writtenFiles[0].path}`);
+    } else {
+      reporter.info(`Wrote ${['', ...writtenFiles.map(({ path }) => path)].join('\n  ')}`);
+    }
+
+    reporter.json({
+      writtenFiles,
+      generationIds: generationAudio.keys(),
+    });
+
+    return;
+  }
+
+  async synthesizeBuffered(
+    reporter: Reporter,
+    tts: Hume.tts.PostedTts,
+    hume: HumeClient,
+    opts: ReturnType<typeof Tts.resolveOpts>,
+    outputOpts: SynthesisOutputOpts
+  ) {
     const result = await reporter.withSpinner('Synthesizing...', async () => {
       debug('Request payload: %O', JSON.stringify(tts, null, 2));
       const result = await hume.tts.synthesizeJson(tts);
@@ -576,11 +553,7 @@ export class Tts {
       reporter.info(`Wrote ${['', ...writtenFiles.map(({ path }) => path)].join('\n  ')}`);
     }
     reporter.json({ result, written_files: writtenFiles });
-    await this.playAudios(
-      opts.play,
-      writtenFiles.map(({ path }) => path),
-      reporter,
-      opts.playCommand
-    );
+
+    await this.playAudios(opts.play, writtenFiles, reporter, opts.playCommand ?? null);
   }
 }

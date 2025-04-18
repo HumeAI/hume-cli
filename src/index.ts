@@ -24,6 +24,8 @@ const usageDescriptions = {
   'tts.speed': 'Speaking speed multiplier (0.25-3.0, default is 1.0)',
   'tts.trailingSilence': 'Seconds of silence to add at the end (0.0-5.0, default is 0.35)',
   'tts.streaming': 'Use streaming mode for TTS generation (default: true)',
+  'tts.instantMode':
+    'Enable ultra-low latency mode for significantly faster generation (requires streaming=true, a voice, and incurs 10% higher cost)',
   apiKey: 'Override the default API key',
   json: 'Output in JSON format',
   pretty: 'Output in human-readable format',
@@ -348,6 +350,8 @@ const ttsExamples: Usage['examples'] = [
   ],
   ['Adjusting speech speed', '$0 tts "I am speaking very slowly" -v narrator --speed 0.75'],
   ['Adding trailing silence', '$0 tts "Wait for it..." -v narrator --trailing-silence 3.5'],
+  ['Using instant mode for ultra-low latency', '$0 tts "Hello world" -v narrator --instant-mode'],
+  ['Setting instant mode in your config', 'hume config set tts.instantMode true'],
 ];
 class TtsCommand extends Command {
   static paths = [['tts']];
@@ -444,6 +448,10 @@ class TtsCommand extends Command {
 
   streaming = Option.Boolean('--streaming', {
     description: usageDescriptions['tts.streaming'],
+  });
+
+  instantMode = Option.Boolean('--instant-mode', {
+    description: usageDescriptions['tts.instantMode'],
   });
 
   async execute() {

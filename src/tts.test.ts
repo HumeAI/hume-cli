@@ -81,11 +81,12 @@ const setupTest = (
   args: {
     synthesizeJson?: Mock<HumeClient['tts']['synthesizeJson']>;
     synthesizeJsonStreaming?: Mock<HumeClient['tts']['synthesizeJsonStreaming']>;
-    playAudio?: Mock<Tts['playAudio']>;
-    ensureDirAndWriteFile?: Mock<Tts['ensureDirAndWriteFile']>;
-    getSettings?: Mock<Tts['getSettings']>;
-    getLastSynthesis?: Mock<Tts['getLastSynthesis']>;
-    saveLastSynthesis?: Mock<Tts['saveLastSynthesis']>;
+    playAudioFile?: Mock<any>;
+    writeAudio?: Mock<any>;
+    ensureDirAndWriteFile?: Mock<any>;
+    getSettings?: Mock<any>;
+    getLastSynthesis?: Mock<any>;
+    saveLastSynthesis?: Mock<any>;
   } = {}
 ) => {
   const settings =
@@ -97,9 +98,9 @@ const setupTest = (
 
   const mocks = Object.freeze({
     ensureDirAndWriteFile: args.ensureDirAndWriteFile ?? mock(() => Promise.resolve()),
-    playAudio: args.playAudio ?? mock(() => Promise.resolve()),
-    getSettings:
-      args.getSettings ?? (mock(() => Promise.resolve(settings)) as Mock<Tts['getSettings']>),
+    playAudioFile: args.playAudioFile ?? mock(() => Promise.resolve()),
+    writeAudio: args.writeAudio ?? mock(() => Promise.resolve()),
+    getSettings: args.getSettings ?? mock(() => Promise.resolve(settings)),
     synthesizeJson: args.synthesizeJson ?? (settings as any).hume.tts.synthesizeJson,
     synthesizeJsonStreaming:
       args.synthesizeJsonStreaming ?? (settings as any).hume.tts.synthesizeJsonStreaming,
@@ -109,7 +110,8 @@ const setupTest = (
 
   const tts = new Tts();
   tts['ensureDirAndWriteFile'] = mocks.ensureDirAndWriteFile;
-  tts['playAudio'] = mocks.playAudio;
+  tts['playAudioFile'] = mocks.playAudioFile;
+  tts['withStdinAudioPlayer'] = (_, f) => f(mocks.writeAudio);
   tts['getSettings'] = mocks.getSettings;
   tts['getLastSynthesis'] = () => mocks.getLastSynthesis();
   tts['saveLastSynthesis'] = mocks.saveLastSynthesis;
@@ -120,16 +122,14 @@ const setupTest = (
 describe('CLI flags', () => {
   test('--text', async () => {
     const synthesizeJsonStreaming = mockSynthesizeJsonStreaming([snippy(1)]);
-    const playAudio = mock(() => Promise.resolve());
-    const { tts } = setupTest({
+    const { tts, mocks } = setupTest({
       synthesizeJsonStreaming,
-      playAudio,
     });
 
     await tts.synthesize({ text: 'Hello world' });
 
     expect(synthesizeJsonStreaming).toHaveBeenCalled();
-    expect(playAudio).toHaveBeenCalled();
+    expect(mocks.writeAudio).toHaveBeenCalled();
   });
 });
 
@@ -142,12 +142,10 @@ describe('TTS scenarios', () => {
       snippy(2, 1),
     ]);
 
-    const playAudio: Mock<Tts['playAudio']> = mock(() => Promise.resolve());
     const ensureDirAndWriteFile: Mock<Tts['ensureDirAndWriteFile']> = mock(() => Promise.resolve());
 
     const { tts } = setupTest({
       synthesizeJsonStreaming,
-      playAudio,
       ensureDirAndWriteFile,
     });
 
@@ -164,31 +162,39 @@ describe('TTS scenarios', () => {
       json: true,
     });
 
-    expect(synthesizeJsonStreaming).toHaveBeenCalledWith({
-      utterances: [
+    expect(synthesizeJsonStreaming.mock.calls).toEqual([
+      [
         {
-          text: 'Test complete synthesis',
-          voice: { name: 'test_voice' },
-          description: 'test description',
+          utterances: [
+            {
+              text: 'Test complete synthesis',
+              voice: { name: 'test_voice' },
+              description: 'test description',
+            },
+          ],
+          context: { generationId: 'prev_gen' },
+          numGenerations: 2,
+          format: { type: 'wav' },
+          stripHeaders: true,
         },
       ],
-      context: { generationId: 'prev_gen' },
-      numGenerations: 2,
-      format: { type: 'wav' },
-    });
-
-    expect(ensureDirAndWriteFile.mock.calls).toEqual([
-      ['custom/output/test-gen_1.0.wav', expect.any(Buffer)],
-      ['custom/output/test-gen_1.1.wav', expect.any(Buffer)],
-      ['custom/output/test-gen_2.0.wav', expect.any(Buffer)],
-      ['custom/output/test-gen_2.1.wav', expect.any(Buffer)],
     ]);
+
+    // With our changes, we now only create 2 files (one combined file per generation)
+    expect(ensureDirAndWriteFile).toHaveBeenCalledTimes(2);
+
+    // Extract just the file paths from the calls
+    const writtenPaths = ensureDirAndWriteFile.mock.calls.map((call) => call[0]);
+
+    // Check that only the combined files were written
+    expect(writtenPaths).toContain('custom/output/test-gen_1.wav');
+    expect(writtenPaths).toContain('custom/output/test-gen_2.wav');
   });
 
   test('uses preset-voice flag to set provider HUME_AI with voiceName', async () => {
     const synthesizeJsonStreaming = mockSynthesizeJsonStreaming([snippy()]);
 
-    const { tts, mocks } = setupTest({
+    const { tts } = setupTest({
       synthesizeJsonStreaming,
     });
 
@@ -199,22 +205,27 @@ describe('TTS scenarios', () => {
       format: 'wav',
     });
 
-    expect(synthesizeJsonStreaming).toHaveBeenCalledWith({
-      utterances: [
+    expect(synthesizeJsonStreaming.mock.calls).toEqual([
+      [
         {
-          text: 'Test with preset voice',
-          voice: { name: 'test_voice', provider: 'HUME_AI' },
+          utterances: [
+            {
+              text: 'Test with preset voice',
+              voice: { name: 'test_voice', provider: 'HUME_AI' },
+            },
+          ],
+          numGenerations: 1,
+          format: { type: 'wav' },
+          stripHeaders: true,
         },
       ],
-      numGenerations: 1,
-      format: { type: 'wav' },
-    });
+    ]);
   });
 
   test('uses preset-voice flag to set provider HUME_AI with voiceId', async () => {
     const synthesizeJsonStreaming = mockSynthesizeJsonStreaming([snippy(1)]);
 
-    const { tts, mocks } = setupTest({
+    const { tts } = setupTest({
       synthesizeJsonStreaming,
     });
 
@@ -225,22 +236,27 @@ describe('TTS scenarios', () => {
       format: 'wav',
     });
 
-    expect(synthesizeJsonStreaming).toHaveBeenCalledWith({
-      utterances: [
+    expect(synthesizeJsonStreaming.mock.calls).toEqual([
+      [
         {
-          text: 'Test with preset voice ID',
-          voice: { id: 'voice_123', provider: 'HUME_AI' },
+          utterances: [
+            {
+              text: 'Test with preset voice ID',
+              voice: { id: 'voice_123', provider: 'HUME_AI' },
+            },
+          ],
+          numGenerations: 1,
+          format: { type: 'wav' },
+          stripHeaders: true,
         },
       ],
-      numGenerations: 1,
-      format: { type: 'wav' },
-    });
+    ]);
   });
 
   test('uses provider option to set provider with voiceId', async () => {
     const synthesizeJsonStreaming = mockSynthesizeJsonStreaming([snippy(1)]);
 
-    const { tts, mocks } = setupTest({
+    const { tts } = setupTest({
       synthesizeJsonStreaming,
     });
 
@@ -251,16 +267,21 @@ describe('TTS scenarios', () => {
       format: 'wav',
     });
 
-    expect(synthesizeJsonStreaming).toHaveBeenCalledWith({
-      utterances: [
+    expect(synthesizeJsonStreaming.mock.calls).toEqual([
+      [
         {
-          text: 'Test with provider option',
-          voice: { id: 'voice_123', provider: 'HUME_AI' },
+          utterances: [
+            {
+              text: 'Test with provider option',
+              voice: { id: 'voice_123', provider: 'HUME_AI' },
+            },
+          ],
+          numGenerations: 1,
+          format: { type: 'wav' },
+          stripHeaders: true,
         },
       ],
-      numGenerations: 1,
-      format: { type: 'wav' },
-    });
+    ]);
   });
 
   test('pcm with voice ID and multiple generations', async () => {
@@ -274,12 +295,12 @@ describe('TTS scenarios', () => {
     ]);
 
     const ensureDirAndWriteFile: Mock<Tts['ensureDirAndWriteFile']> = mock(() => Promise.resolve());
-    const playAudio: Mock<Tts['playAudio']> = mock(() => Promise.resolve());
+    const writeAudio: Mock<(buffer: Buffer) => void> = mock(() => Promise.resolve());
 
     const { tts } = setupTest({
       synthesizeJsonStreaming,
       ensureDirAndWriteFile,
-      playAudio,
+      writeAudio,
     });
 
     await tts.synthesize({
@@ -294,33 +315,41 @@ describe('TTS scenarios', () => {
       pretty: true,
     });
 
-    expect(synthesizeJsonStreaming).toHaveBeenCalledWith({
-      utterances: [
+    expect(synthesizeJsonStreaming.mock.calls).toEqual([
+      [
         {
-          text: 'Alternative synthesis test',
-          voice: { id: 'voice_123' },
-          description: 'calm and professional',
+          utterances: [
+            {
+              text: 'Alternative synthesis test',
+              voice: { id: 'voice_123' },
+              description: 'calm and professional',
+            },
+          ],
+          numGenerations: 3,
+          format: { type: 'pcm' },
+          stripHeaders: true,
         },
       ],
-      numGenerations: 3,
-      format: { type: 'pcm' },
-    });
-
-    expect(ensureDirAndWriteFile.mock.calls).toEqual([
-      ['session/output/synth-gen_3.0.pcm', expect.any(Buffer)],
-      ['session/output/synth-gen_3.1.pcm', expect.any(Buffer)],
-      ['session/output/synth-gen_4.0.pcm', expect.any(Buffer)],
-      ['session/output/synth-gen_4.1.pcm', expect.any(Buffer)],
-      ['session/output/synth-gen_5.0.pcm', expect.any(Buffer)],
-      ['session/output/synth-gen_5.1.pcm', expect.any(Buffer)],
     ]);
 
-    // With play: 'first', only the first generation's snippets should be played
-    expect(playAudio).toHaveBeenCalledTimes(2);
-    expect(playAudio.mock.calls).toEqual([
-      ['session/output/synth-gen_3.0.pcm', undefined],
-      ['session/output/synth-gen_3.1.pcm', undefined],
-    ]);
+    // With our changes, we now only create 3 files (one combined file per generation)
+    expect(ensureDirAndWriteFile).toHaveBeenCalledTimes(3);
+
+    // Extract just the file paths from the calls
+    const writtenPaths = ensureDirAndWriteFile.mock.calls.map((call) => call[0]);
+
+    // Check that only the combined files were written
+    expect(writtenPaths).toContain('session/output/synth-gen_3.pcm');
+    expect(writtenPaths).toContain('session/output/synth-gen_4.pcm');
+    expect(writtenPaths).toContain('session/output/synth-gen_5.pcm');
+
+    // Verify audio playback for snippets from the first generation
+    // (with play: 'first', only the first generation's snippets should be played)
+    expect(writeAudio).toHaveBeenCalledTimes(2);
+
+    // Verify all playback is done with Buffer objects (using stdin)
+    const playedBuffers = writeAudio.mock.calls.filter((call) => call[0] instanceof Buffer).length;
+    expect(playedBuffers).toBe(2); // Both snippets from first generation should be played
   });
 
   test('settings cascade env -> globalConfig -> session -> opts', async () => {
@@ -372,29 +401,40 @@ describe('TTS scenarios', () => {
       });
     });
 
+    const writeAudio = mock(() => Promise.resolve());
     const tts = new Tts();
     tts['ensureDirAndWriteFile'] = ensureDirAndWriteFile;
-    tts['playAudio'] = mock(() => Promise.resolve());
     tts['getSettings'] = getSettingsMock;
     tts['getLastSynthesis'] = () => Promise.resolve(null);
     tts['saveLastSynthesis'] = mock(() => Promise.resolve());
+    tts['withStdinAudioPlayer'] = (_, f) => f(writeAudio);
 
     await tts.synthesize(opts);
 
-    expect(ensureDirAndWriteFile.mock.calls).toEqual([
-      ['config/output/tts-gen_1.0.pcm', expect.any(Buffer)],
-    ]);
+    // With our changes, we now only expect 1 combined file per generation
+    expect(ensureDirAndWriteFile).toHaveBeenCalledTimes(1);
 
-    expect(synthesizeJsonStreaming).toHaveBeenCalledWith({
-      numGenerations: 1,
-      utterances: [
+    // Extract just the file path from the call
+    const writtenPath = ensureDirAndWriteFile.mock.calls[0][0];
+
+    // Check that only the combined file was written
+    expect(writtenPath).toBe('config/output/tts-gen_1.pcm');
+
+    expect(synthesizeJsonStreaming.mock.calls).toEqual([
+      [
         {
-          text: 'Hello world',
-          voice: { id: 'opts_voice' },
+          numGenerations: 1,
+          utterances: [
+            {
+              text: 'Hello world',
+              voice: { id: 'opts_voice' },
+            },
+          ],
+          format: { type: 'pcm' },
+          stripHeaders: true,
         },
       ],
-      format: { type: 'pcm' },
-    });
+    ]);
   });
 });
 
@@ -431,12 +471,17 @@ describe('continue functionality', () => {
       last: true,
     });
 
-    expect(synthesizeJsonStreaming).toHaveBeenCalledWith({
-      format: expect.anything(),
-      utterances: expect.anything(),
-      context: { generationId: 'gen_1' },
-      numGenerations: 1,
-    });
+    expect(synthesizeJsonStreaming.mock.calls).toEqual([
+      [
+        {
+          format: expect.anything(),
+          utterances: expect.anything(),
+          context: { generationId: 'gen_1' },
+          numGenerations: 1,
+          stripHeaders: true,
+        },
+      ],
+    ]);
   });
 
   test('uses specified generation when continue is used with index', async () => {
@@ -458,12 +503,17 @@ describe('continue functionality', () => {
       lastIndex: 2,
     });
 
-    expect(synthesizeJsonStreaming).toHaveBeenCalledWith({
-      format: expect.anything(),
-      utterances: expect.anything(),
-      context: { generationId: 'gen_2' },
-      numGenerations: 1,
-    });
+    expect(synthesizeJsonStreaming.mock.calls).toEqual([
+      [
+        {
+          format: expect.anything(),
+          utterances: expect.anything(),
+          context: { generationId: 'gen_2' },
+          numGenerations: 1,
+          stripHeaders: true,
+        },
+      ],
+    ]);
   });
 
   test('throws error when continue index is invalid', async () => {
@@ -496,12 +546,12 @@ describe('streaming functionality', () => {
       snippy(1, 2),
     ]);
 
-    const playAudio: Mock<Tts['playAudio']> = mock(() => Promise.resolve());
+    const writeAudio: Mock<(buffer: Buffer) => void> = mock(() => Promise.resolve());
     const ensureDirAndWriteFile: Mock<Tts['ensureDirAndWriteFile']> = mock(() => Promise.resolve());
 
     const { tts, mocks } = setupTest({
       synthesizeJsonStreaming,
-      playAudio,
+      writeAudio,
       ensureDirAndWriteFile,
     });
 
@@ -517,27 +567,72 @@ describe('streaming functionality', () => {
     // Verify synthesizeJsonStreaming was called with the correct parameters
     expect(synthesizeJsonStreaming).toHaveBeenCalled();
 
-    // Verify each snippet was written to the correct file with the correct naming pattern
-    expect(ensureDirAndWriteFile).toHaveBeenCalledTimes(3);
-    expect(ensureDirAndWriteFile.mock.calls).toEqual([
-      ['stream/output/stream-gen_1.0.wav', expect.any(Buffer)],
-      ['stream/output/stream-gen_1.1.wav', expect.any(Buffer)],
-      ['stream/output/stream-gen_1.2.wav', expect.any(Buffer)],
-    ]);
+    // We expect only 1 file (the combined output)
+    expect(ensureDirAndWriteFile).toHaveBeenCalledTimes(1);
 
-    // Verify each snippet was played as it was received
-    expect(playAudio).toHaveBeenCalledTimes(3);
-    expect(playAudio.mock.calls).toEqual([
-      ['stream/output/stream-gen_1.0.wav', undefined],
-      ['stream/output/stream-gen_1.1.wav', undefined],
-      ['stream/output/stream-gen_1.2.wav', undefined],
-    ]);
+    // Extract the file path from the call
+    const writtenPath = ensureDirAndWriteFile.mock.calls[0][0];
+
+    // Check that only the combined file was written
+    expect(writtenPath).toBe('stream/output/stream-gen_1.wav');
+
+    // Verify the correct number of audio playback calls (one for each snippet)
+    expect(writeAudio).toHaveBeenCalledTimes(3);
+
+    // With stdin playback, we should be using Buffer objects in the calls
+    const playedBuffers = writeAudio.mock.calls.filter((call) => call[0] instanceof Buffer).length;
+    expect(playedBuffers).toBe(3); // All 3 snippets should be played via stdin
 
     // Verify generation IDs were saved for history/continuation
     expect(mocks.saveLastSynthesis).toHaveBeenCalledWith({
       ids: ['gen_1'],
       timestamp: expect.any(Number),
     });
+  });
+
+  test('filters out empty audio chunks during streaming', async () => {
+    // Create test data with one empty audio chunk in between valid chunks
+    const testSnippets = [
+      snippy(1, 0, { text: 'Hello', audio: 'audio1' }),
+      // Empty audio chunk that should be filtered out
+      { ...snippy(1, 1, { text: 'Empty', audio: '' }), audio: '' },
+      snippy(1, 2, { text: 'World', audio: 'audio3' }),
+    ];
+
+    const synthesizeJsonStreaming = mockSynthesizeJsonStreaming(testSnippets);
+    const writeAudio: Mock<(buffer: Buffer) => void> = mock(() => Promise.resolve());
+    const ensureDirAndWriteFile: Mock<Tts['ensureDirAndWriteFile']> = mock(() => Promise.resolve());
+
+    const { tts } = setupTest({
+      synthesizeJsonStreaming,
+      writeAudio,
+      ensureDirAndWriteFile,
+    });
+
+    await tts.synthesize({
+      text: 'Test empty audio filtering',
+      streaming: true,
+      outputDir: 'stream/output',
+      prefix: 'stream-',
+      format: 'wav',
+      play: 'all',
+    });
+
+    // Verify only 1 file is written (the combined file)
+    expect(ensureDirAndWriteFile).toHaveBeenCalledTimes(1);
+
+    // Extract the file path from the call
+    const writtenPath = ensureDirAndWriteFile.mock.calls[0][0];
+
+    // Check that only the combined file was written
+    expect(writtenPath).toBe('stream/output/stream-gen_1.wav');
+
+    // Verify only non-empty chunks are played
+    expect(writeAudio).toHaveBeenCalledTimes(2); // Only 2 chunks out of 3 should be played
+
+    // With stdin playback, we should be using Buffer objects in the calls
+    const playedBuffers = writeAudio.mock.calls.filter((call) => call[0] instanceof Buffer).length;
+    expect(playedBuffers).toBe(2); // Both non-empty snippets should be played via stdin
   });
 
   test('uses non-streaming path when streaming is disabled', async () => {
@@ -555,5 +650,111 @@ describe('streaming functionality', () => {
 
     expect(synthesizeJson).toHaveBeenCalled();
     expect(mocks.synthesizeJsonStreaming).not.toHaveBeenCalled();
+  });
+});
+
+describe('instant mode functionality', () => {
+  test('uses instant mode in streaming request', async () => {
+    const synthesizeJsonStreaming = mockSynthesizeJsonStreaming([snippy(1, 0), snippy(1, 1)]);
+
+    const { tts } = setupTest({
+      synthesizeJsonStreaming,
+    });
+
+    await tts.synthesize({
+      text: 'Test instant mode',
+      streaming: true,
+      instantMode: true,
+      voiceName: 'test_voice', // Add voice name to satisfy validation
+    });
+
+    // Verify synthesizeJsonStreaming was called with instantMode set to true
+    expect(synthesizeJsonStreaming.mock.calls).toEqual([
+      [
+        expect.objectContaining({
+          instantMode: true,
+          numGenerations: 1,
+          stripHeaders: true,
+          utterances: [
+            expect.objectContaining({
+              voice: expect.objectContaining({
+                name: 'test_voice',
+              }),
+            }),
+          ],
+        }),
+      ],
+    ]);
+  });
+
+  test('throws error when instantMode is enabled but streaming is disabled', async () => {
+    const { tts } = setupTest();
+
+    await expect(
+      tts.synthesize({
+        text: 'Test instant mode with streaming disabled',
+        streaming: false,
+        instantMode: true,
+      })
+    ).rejects.toThrow('Instant mode requires streaming to be enabled');
+  });
+
+  test('throws error when instantMode is enabled with multiple generations', async () => {
+    const { tts } = setupTest();
+
+    await expect(
+      tts.synthesize({
+        text: 'Test instant mode with multiple generations',
+        streaming: true,
+        instantMode: true,
+        numGenerations: 2,
+      })
+    ).rejects.toThrow('Instant mode requires num_generations=1');
+  });
+
+  test('throws error when instantMode is enabled without a voice', async () => {
+    const { tts } = setupTest();
+
+    await expect(
+      tts.synthesize({
+        text: 'Test instant mode without voice',
+        streaming: true,
+        instantMode: true,
+      })
+    ).rejects.toThrow(
+      'Instant mode requires a voice to be specified (use --voice-name, --voice-id, --last, or --continue)'
+    );
+  });
+
+  test('allows instant mode with --last option', async () => {
+    const lastGeneration = {
+      ids: ['gen_1'],
+      timestamp: Date.now(),
+    };
+
+    const synthesizeJsonStreaming = mockSynthesizeJsonStreaming([snippy(10)]);
+
+    const { tts } = setupTest({
+      getLastSynthesis: mock(() => Promise.resolve(lastGeneration)),
+      synthesizeJsonStreaming,
+    });
+
+    await tts.synthesize({
+      text: 'Hello world',
+      last: true,
+      streaming: true,
+      instantMode: true,
+    });
+
+    expect(synthesizeJsonStreaming.mock.calls).toEqual([
+      [
+        expect.objectContaining({
+          context: { generationId: 'gen_1' },
+          instantMode: true,
+          numGenerations: 1,
+          stripHeaders: true,
+        }),
+      ],
+    ]);
   });
 });

@@ -401,11 +401,13 @@ describe('TTS scenarios', () => {
       });
     });
 
+    const writeAudio = mock(() => Promise.resolve());
     const tts = new Tts();
     tts['ensureDirAndWriteFile'] = ensureDirAndWriteFile;
     tts['getSettings'] = getSettingsMock;
     tts['getLastSynthesis'] = () => Promise.resolve(null);
     tts['saveLastSynthesis'] = mock(() => Promise.resolve());
+    tts['withStdinAudioPlayer'] = (_, f) => f(writeAudio);
 
     await tts.synthesize(opts);
 

@@ -523,6 +523,9 @@ describe('CLI End-to-End Tests', () => {
       generation_id: generationId,
       audio: Buffer.from(`audio-data-${generationId}-${id}`).toString('base64'),
       utterance_index: partial.utteranceIndex ?? 0,
+      // Add the missing properties required by the RawSnippetAudioChunk type
+      snippet_id: id,
+      text: `Sample text for ${id}`,
     };
   };
 

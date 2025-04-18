@@ -24,6 +24,8 @@ const usageDescriptions = {
   'tts.speed': 'Speaking speed multiplier (0.25-3.0, default is 1.0)',
   'tts.trailingSilence': 'Seconds of silence to add at the end (0.0-5.0, default is 0.35)',
   'tts.streaming': 'Use streaming mode for TTS generation (default: true)',
+  'tts.instantMode':
+    'Enable instant mode for faster generation (requires streaming=true and num_generations=1)',
   apiKey: 'Override the default API key',
   json: 'Output in JSON format',
   pretty: 'Output in human-readable format',
@@ -444,6 +446,10 @@ class TtsCommand extends Command {
 
   streaming = Option.Boolean('--streaming', {
     description: usageDescriptions['tts.streaming'],
+  });
+
+  instantMode = Option.Boolean('--instant-mode', {
+    description: usageDescriptions['tts.instantMode'],
   });
 
   async execute() {

@@ -33,6 +33,7 @@ export type ConfigData = {
     speed?: number;
     trailingSilence?: number;
     streaming?: boolean;
+    instantMode?: boolean;
   };
   json?: boolean;
   pretty?: boolean;
@@ -54,6 +55,7 @@ export const configValidators = {
   'tts.speed': t.cascade(t.isNumber(), t.isInInclusiveRange(0.25, 3.0)),
   'tts.trailingSilence': t.cascade(t.isNumber(), t.isInInclusiveRange(0.0, 5.0)),
   'tts.streaming': t.isBoolean(),
+  'tts.instantMode': t.isBoolean(),
   json: t.isBoolean(),
   pretty: t.isBoolean(),
   apiKey: t.isString(),

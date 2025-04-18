@@ -412,7 +412,9 @@ export class Tts {
         throw new Error('Instant mode requires num_generations=1');
       }
       if (!utterance.voice && !tts.context) {
-        throw new Error('Instant mode requires a voice to be specified (use --voice-name, --voice-id, --last, or --continue)');
+        throw new Error(
+          'Instant mode requires a voice to be specified (use --voice-name, --voice-id, --last, or --continue)'
+        );
       }
       tts.instantMode = true;
     }

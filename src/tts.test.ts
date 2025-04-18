@@ -678,10 +678,10 @@ describe('instant mode functionality', () => {
           utterances: [
             expect.objectContaining({
               voice: expect.objectContaining({
-                name: 'test_voice'
-              })
-            })
-          ]
+                name: 'test_voice',
+              }),
+            }),
+          ],
         }),
       ],
     ]);
@@ -721,7 +721,9 @@ describe('instant mode functionality', () => {
         streaming: true,
         instantMode: true,
       })
-    ).rejects.toThrow('Instant mode requires a voice to be specified (use --voice-name, --voice-id, --last, or --continue)');
+    ).rejects.toThrow(
+      'Instant mode requires a voice to be specified (use --voice-name, --voice-id, --last, or --continue)'
+    );
   });
 
   test('allows instant mode with --last option', async () => {

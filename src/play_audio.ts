@@ -1,4 +1,5 @@
 import { debug } from './common';
+import { spawnSync, spawn } from 'child_process';
 
 type Command = {
   cmd: string;
@@ -52,7 +53,7 @@ const findDefaultAudioPlayer_ = (): Command | null => {
   for (const player of commonPlayers) {
     const checkCmd = isWindows ? 'where' : 'which';
     try {
-      Bun.spawnSync([checkCmd, player.cmd]);
+      spawnSync(checkCmd, [player.cmd]);
       return player; // found!
     } catch {}
   }
@@ -60,20 +61,30 @@ const findDefaultAudioPlayer_ = (): Command | null => {
   return null;
 };
 
-export const playAudioFile = async (
-  path: string,
-  customCommand: string | null
-): Promise<unknown> => {
+export const playAudioFile = async (path: string, customCommand: string | null) => {
   const command = ensureAudioPlayer(
     customCommand ? parseCustomCommand(customCommand) : findDefaultAudioPlayer()
   );
   const isWindows = process.platform === 'win32';
   const sanitizedPath = isWindows ? path.replace(/\\/g, '\\\\') : path;
 
-  return Bun.spawn([command.cmd, ...command.argsWithPath(sanitizedPath)], {
-    stdout: 'ignore',
-    stderr: 'ignore',
-  }).exited;
+  return new Promise<void>((resolve, reject) => {
+    const process = spawn(command.cmd, [...command.argsWithPath(sanitizedPath)], {
+      stdio: ['ignore', 'ignore', 'ignore'],
+    });
+
+    process.on('close', (code: number) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(`Process exited with code ${code}`));
+      }
+    });
+
+    process.on('error', (err: any) => {
+      reject(err);
+    });
+  });
 };
 
 export const parseCustomCommand = (command: string): Command => {
@@ -114,17 +125,30 @@ export const withStdinAudioPlayer = async (
   const command = ensureStdinSupport(
     ensureAudioPlayer(customCommand ? parseCustomCommand(customCommand) : findDefaultAudioPlayer())
   );
-
   debug([command.cmd, command.argsWithStdin]);
-  const proc = Bun.spawn([command.cmd, ...command.argsWithStdin], {
-    stdout: 'ignore',
-    stderr: 'ignore',
-    stdin: 'pipe',
+
+  const { spawn } = require('child_process');
+  const proc = spawn(command.cmd, [...command.argsWithStdin], {
+    stdio: ['pipe', 'ignore', 'ignore'],
   });
 
-  await f((audioBuffer: Buffer) => {
+  await f((audioBuffer) => {
     proc.stdin.write(audioBuffer);
   });
+
   proc.stdin.end();
-  await proc.exited;
+
+  return new Promise((resolve, reject) => {
+    proc.on('close', (code: number) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(`Process exited with code ${code}`));
+      }
+    });
+
+    proc.on('error', (err: any) => {
+      reject(err);
+    });
+  });
 };

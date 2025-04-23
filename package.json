@@ -1,6 +1,6 @@
 {
   "name": "@humeai/cli",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "module": "index.ts",
   "type": "module",
   "description": "CLI for Hume.ai's OCTAVE expressive TTS API",
@@ -18,12 +18,11 @@
     "typecheck": "tsc --noEmit",
     "format": "prettier --write \"**/*.{ts,js,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,js,json,md}\"",
-    "prebuild": "bun build src/index.ts --compile --outfile dist/hume",
+    "prebuild": "bun build src/index.ts --target node --outfile dist/index.js && chmod +x dist/index.js",
     "prepublishOnly": "npm run prebuild"
   },
   "dependencies": {
     "@clack/prompts": "^0.10.0",
-    "bun": "^1.2.2",
     "clipanion": "^4.0.0-rc.4",
     "debug": "^4.4.0",
     "hume": "^0.10.3",
@@ -31,9 +30,9 @@
     "typanion": "^3.14.0"
   },
   "files": [
-    "dist/hume"
+    "dist/index.js"
   ],
   "bin": {
-    "hume": "dist/hume"
+    "hume": "dist/index.js"
   }
 }

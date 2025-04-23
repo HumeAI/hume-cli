@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import {
   Cli,
   Command as ClipanionBaseCommand,

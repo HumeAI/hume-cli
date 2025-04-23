@@ -1,5 +1,5 @@
 import { debug } from './common';
-import {spawnSync, spawn} from 'child_process';
+import { spawnSync, spawn } from 'child_process';
 
 type Command = {
   cmd: string;
@@ -61,21 +61,18 @@ const findDefaultAudioPlayer_ = (): Command | null => {
   return null;
 };
 
-export const playAudioFile = async (
-  path: string,
-  customCommand: string | null,
-) => {
+export const playAudioFile = async (path: string, customCommand: string | null) => {
   const command = ensureAudioPlayer(
     customCommand ? parseCustomCommand(customCommand) : findDefaultAudioPlayer()
   );
   const isWindows = process.platform === 'win32';
   const sanitizedPath = isWindows ? path.replace(/\\/g, '\\\\') : path;
-  
+
   return new Promise<void>((resolve, reject) => {
     const process = spawn(command.cmd, [...command.argsWithPath(sanitizedPath)], {
-      stdio: ['ignore', 'ignore', 'ignore']
+      stdio: ['ignore', 'ignore', 'ignore'],
     });
-    
+
     process.on('close', (code: number) => {
       if (code === 0) {
         resolve();
@@ -83,7 +80,7 @@ export const playAudioFile = async (
         reject(new Error(`Process exited with code ${code}`));
       }
     });
-    
+
     process.on('error', (err: any) => {
       reject(err);
     });
@@ -129,18 +126,18 @@ export const withStdinAudioPlayer = async (
     ensureAudioPlayer(customCommand ? parseCustomCommand(customCommand) : findDefaultAudioPlayer())
   );
   debug([command.cmd, command.argsWithStdin]);
-  
+
   const { spawn } = require('child_process');
   const proc = spawn(command.cmd, [...command.argsWithStdin], {
-    stdio: ['pipe', 'ignore', 'ignore']
+    stdio: ['pipe', 'ignore', 'ignore'],
   });
-  
+
   await f((audioBuffer) => {
     proc.stdin.write(audioBuffer);
   });
-  
+
   proc.stdin.end();
-  
+
   return new Promise((resolve, reject) => {
     proc.on('close', (code: number) => {
       if (code === 0) {
@@ -149,7 +146,7 @@ export const withStdinAudioPlayer = async (
         reject(new Error(`Process exited with code ${code}`));
       }
     });
-    
+
     proc.on('error', (err: any) => {
       reject(err);
     });

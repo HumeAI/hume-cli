@@ -27,6 +27,7 @@ const usageDescriptions = {
   'tts.streaming': 'Use streaming mode for TTS generation (default: true)',
   'tts.instantMode':
     'Enable ultra-low latency mode for significantly faster generation (requires streaming=true, a voice, and incurs 10% higher cost)',
+  'chat.configId': 'ID of the EVI configuration to use',
   apiKey: 'Override the default API key',
   json: 'Output in JSON format',
   pretty: 'Output in human-readable format',
@@ -34,6 +35,7 @@ const usageDescriptions = {
 import { Tts } from './tts';
 import * as t from 'typanion';
 import { Voices } from './voices';
+import { Evi } from './chat';
 import {
   configValidators,
   endSession,
@@ -461,6 +463,31 @@ class TtsCommand extends Command {
   }
 }
 
+class EviChatCommand extends Command {
+  static paths = [['chat']];
+  static usage = Command.Usage({
+    description: 'Start an EVI chat',
+    details: "Connects to Hume's Empathic Voice Interface using the provided configuration ID.",
+    examples: [['Start a chat', 'chat <config-id>']],
+  });
+
+  configId = Option.String({
+    required: true,
+    name: 'config-id',
+    description: usageDescriptions['chat.configId'],
+  });
+  apiKey = Option.String('--api-key', { description: usageDescriptions.apiKey });
+  baseUrl = Option.String('--base-url', {
+    description: 'Override the default API base URL (for testing purposes)',
+  });
+  debug = Option.Boolean('--debug');
+
+  async execute() {
+    const evi = new Evi();
+    await evi.chat(this);
+  }
+}
+
 // Root command that shows help by default
 class RootCommand extends Command {
   static paths = [Command.Default];
@@ -483,7 +510,9 @@ class HelpCommand extends Builtins.HelpCommand {
       * \`hume voices list --help\` - List available voices
       
       * \`hume voices delete --help\` - Delete a saved voice
-    
+
+      * \`hume chat --help\` - Interact with EVI using your microphone
+
       * \`hume session --help\` - Save settings temporarily so you don't have to repeat yourself
     
       * \`hume config --help\` - Save settings more permanently
@@ -509,6 +538,7 @@ class LoginCommand extends Command {
 
 cli.register(RootCommand);
 cli.register(TtsCommand);
+cli.register(EviChatCommand);
 cli.register(LoginCommand);
 cli.register(SessionRootCommand);
 cli.register(SaveVoiceCommand);

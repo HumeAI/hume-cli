@@ -44,6 +44,7 @@ import {
   showSession,
   login,
 } from './config';
+import { ServeAccessToken } from './serve-access-token';
 
 // Create and run the CLI
 const cli = new Cli({
@@ -507,9 +508,45 @@ class LoginCommand extends Command {
   }
 }
 
+class ServeAccessTokenCommand extends Command {
+  static paths = [['serve-access-token']];
+  static usage = Command.Usage({
+    description: 'Start a development server for access token generation',
+    details: `Starts a local HTTP server that provides an /access-token endpoint for development purposes.
+
+This server generates access tokens using your HUME_API_KEY and HUME_SECRET_KEY environment variables.
+
+⚠️  This is a demo server meant for development use only. On production servers, implement an /access-token endpoint on your own backend infrastructure, following the directions in https://dev.hume.ai/docs/introduction/api-key#token-authentication.`,
+    examples: [['Start the access token server', 'serve-access-token']],
+  });
+
+  port = Option.String('--port', {
+    description: 'Port to listen on (default: 8080)',
+    validator: t.isNumber(),
+  });
+
+  host = Option.String('--host', {
+    description: 'Host to listen on (default: localhost)',
+  });
+
+  apiKey = Option.String('--api-key', {
+    description: usageDescriptions.apiKey,
+  });
+
+  secretKey = Option.String('--secret-key', {
+    description: 'Override the default secret key',
+  });
+
+  async execute() {
+    const serveAccessToken = new ServeAccessToken();
+    await serveAccessToken.serve(this);
+  }
+}
+
 cli.register(RootCommand);
 cli.register(TtsCommand);
 cli.register(LoginCommand);
+cli.register(ServeAccessTokenCommand);
 cli.register(SessionRootCommand);
 cli.register(SaveVoiceCommand);
 cli.register(ListVoicesCommand);

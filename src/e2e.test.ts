@@ -300,7 +300,7 @@ class MockHumeServer {
       },
     });
 
-    this.port = this.server.port;
+    this.port = this.server.port!;
     log(`Mock Hume server started on port ${this.port}`);
     return this.port;
   }
@@ -365,13 +365,30 @@ class MockHumeServer {
           // Otherwise create default mock generations
           const mockAudio = Buffer.from('mock-audio-data').toString('base64');
 
-          snippets = Array.from({ length: numGenerations }, (_, i) => ({
-            generation_id: `mock_gen_${i + 1}`,
-            audio: mockAudio,
-            id: `mock_snippet_${i + 1}`,
-            text: 'mock text',
-            utteranceIndex: 0,
-          }));
+          snippets = Array.from({ length: numGenerations }, (_, i) => {
+            const generationId = `mock_gen_${i + 1}`;
+            const snippetId = `mock_snippet_${i + 1}`;
+            return {
+              request_id: `mock_request_${Date.now()}_${i}`,
+              generation_id: generationId,
+              snippet_id: snippetId,
+              text: 'mock text',
+              transcribed_text: null,
+              chunk_index: 0,
+              audio: mockAudio,
+              audio_format: 'wav' as const,
+              is_last_chunk: true,
+              utterance_index: 0,
+              snippet: {
+                id: snippetId,
+                text: 'mock text',
+                generation_id: generationId,
+                utterance_index: 0,
+                transcribed_text: null,
+                audio: mockAudio,
+              },
+            };
+          });
         }
 
         return new Response(snippets!.map((x) => JSON.stringify(x) + '\n').join(''), {
@@ -516,16 +533,29 @@ describe('CLI End-to-End Tests', () => {
   // Use NonNullable to ensure TypeScript knows we're accessing a valid type
   const createChunk = (partial: Partial<SnippetAudioChunk>): RawSnippetAudioChunk => {
     const generationId = partial.generationId ?? 'test_gen_123';
-    const id = `${generationId}-0`;
+    const snippetId = `${generationId}-0`;
+    const audio = Buffer.from(`audio-data-${generationId}-${snippetId}`).toString('base64');
+    const text = `Sample text for ${snippetId}`;
+
     return {
-      chunk_index: partial.chunkIndex ?? 0,
-      is_last_chunk: partial.isLastChunk ?? true,
+      request_id: `test_request_${Date.now()}_${generationId}`,
       generation_id: generationId,
-      audio: Buffer.from(`audio-data-${generationId}-${id}`).toString('base64'),
+      snippet_id: snippetId,
+      text,
+      transcribed_text: null,
+      chunk_index: partial.chunkIndex ?? 0,
+      audio,
+      audio_format: 'wav' as const,
+      is_last_chunk: partial.isLastChunk ?? true,
       utterance_index: partial.utteranceIndex ?? 0,
-      // Add the missing properties required by the RawSnippetAudioChunk type
-      snippet_id: id,
-      text: `Sample text for ${id}`,
+      snippet: {
+        id: snippetId,
+        text,
+        generation_id: generationId,
+        utterance_index: partial.utteranceIndex ?? 0,
+        transcribed_text: null,
+        audio,
+      },
     };
   };
 

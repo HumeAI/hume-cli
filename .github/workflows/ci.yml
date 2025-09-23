@@ -22,7 +22,7 @@ jobs:
         run: bun install
       
       - name: Run tests
-        run: bun test
+        run: BUN_TEST_VERBOSE=1 bun test
       
       - name: Check types
         run: bun typecheck

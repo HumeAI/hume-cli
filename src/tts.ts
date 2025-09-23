@@ -447,13 +447,17 @@ export class Tts {
     const go = async (writeAudio: (audioBuffer: Buffer) => void) => {
       await reporter.withSpinner('Synthesizing...', async () => {
         let firstGenerationId = null;
-        for await (const chunk of await hume.tts.synthesizeJsonStreaming(tts)) {
-          debug('chunk');
-          if (!firstGenerationId) {
+        for await (const rawChunk of await hume.tts.synthesizeJsonStreaming(tts)) {
+          const chunk = rawChunk;
+          if (!firstGenerationId && chunk.generationId) {
             firstGenerationId = chunk.generationId;
           }
           if (!chunk.audio || chunk.audio.length === 0) {
             debug('Skipping empty audio snippet');
+            continue;
+          }
+          if (!chunk.generationId) {
+            debug('Skipping chunk without generationId');
             continue;
           }
 

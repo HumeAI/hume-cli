@@ -300,7 +300,7 @@ class MockHumeServer {
       },
     });
 
-    this.port = this.server.port;
+    this.port = this.server.port!;
     log(`Mock Hume server started on port ${this.port}`);
     return this.port;
   }

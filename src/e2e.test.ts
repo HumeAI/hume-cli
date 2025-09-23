@@ -369,6 +369,7 @@ class MockHumeServer {
             const generationId = `mock_gen_${i + 1}`;
             const snippetId = `mock_snippet_${i + 1}`;
             return {
+              request_id: `mock_request_${Date.now()}_${i}`,
               generation_id: generationId,
               snippet_id: snippetId,
               text: 'mock text',
@@ -537,6 +538,7 @@ describe('CLI End-to-End Tests', () => {
     const text = `Sample text for ${snippetId}`;
 
     return {
+      request_id: `test_request_${Date.now()}_${generationId}`,
       generation_id: generationId,
       snippet_id: snippetId,
       text,

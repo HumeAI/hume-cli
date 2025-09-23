@@ -10,6 +10,7 @@ import {
 } from 'clipanion';
 
 import { CONFIG_FILE } from './config';
+import packageJson from '../package.json' with { type: 'json' };
 
 const usageDescriptions = {
   'tts.description': 'Description of the desired voice',
@@ -48,7 +49,7 @@ import {
 // Create and run the CLI
 const cli = new Cli({
   binaryName: 'hume',
-  binaryVersion: '0.1.0',
+  binaryVersion: packageJson.version,
 });
 
 // Markdown helpers copy+pasted from `clipanion`  -- they were'n't exported.
@@ -522,6 +523,7 @@ cli.register(GlobalConfigShowCommand);
 cli.register(GlobalConfigResetCommand);
 cli.register(GlobalConfigRootCommand);
 cli.register(HelpCommand);
+cli.register(Builtins.VersionCommand);
 
 try {
   cli.process(process.argv.slice(2));

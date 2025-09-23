@@ -5,7 +5,7 @@
   "type": "module",
   "description": "CLI for Hume.ai's OCTAVE expressive TTS API",
   "devDependencies": {
-    "@types/bun": "^1.2.2",
+    "@types/bun": "^1.2.22",
     "@types/debug": "^4.1.12",
     "prettier": "^3.5.2"
   },

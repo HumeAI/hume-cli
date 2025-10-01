@@ -116,6 +116,7 @@ export type SynthesisOpts = CommonOpts & {
   trailingSilence?: number;
   streaming?: boolean;
   instantMode?: boolean;
+  modelVersion?: '1' | '2';
 };
 
 export class Tts {
@@ -398,6 +399,7 @@ export class Tts {
       utterances: [utterance],
       numGenerations: outputOpts.numGenerations,
       format: { type: opts.format },
+      version: opts.modelVersion ?? undefined,
     };
 
     // First add context to support continuation
@@ -449,6 +451,10 @@ export class Tts {
         let firstGenerationId = null;
         for await (const rawChunk of await hume.tts.synthesizeJsonStreaming(tts)) {
           const chunk = rawChunk;
+          if (chunk.type === 'timestamp') {
+            debug('Skipping timestamp chunk');
+            continue;
+          }
           if (!firstGenerationId && chunk.generationId) {
             firstGenerationId = chunk.generationId;
           }

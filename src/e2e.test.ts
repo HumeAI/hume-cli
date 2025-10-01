@@ -555,6 +555,7 @@ describe('CLI End-to-End Tests', () => {
         utterance_index: partial.utteranceIndex ?? 0,
         transcribed_text: null,
         audio,
+        timestamps: [],
       },
     };
   };

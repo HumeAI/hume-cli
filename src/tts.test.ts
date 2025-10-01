@@ -28,6 +28,7 @@ const snippy = (
   id: `gen_${gen}_${snip}`,
   text,
   audio,
+  timestamps: [],
 });
 const mockSynthesizeJsonStreaming = (
   snippets: Array<Hume.tts.Snippet> = [snippy(1, 0), snippy(1, 1)]

@@ -7,7 +7,7 @@
         "@clack/prompts": "^0.10.0",
         "clipanion": "^4.0.0-rc.4",
         "debug": "^4.4.0",
-        "hume": "0.13.6",
+        "hume": "^0.14.0",
         "open": "^10.1.0",
         "typanion": "^3.14.0",
       },
@@ -86,7 +86,7 @@
 
     "hasown": ["hasown@2.0.2", "", { "dependencies": { "function-bind": "^1.1.2" } }, "sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ=="],
 
-    "hume": ["hume@0.13.6", "", { "dependencies": { "isomorphic-ws": "^5.0.0", "node-fetch": "^2.7.0", "qs": "^6.13.1", "readable-stream": "^4.5.2", "url-join": "4.0.1", "uuid": "9.0.1", "ws": "^8.14.2", "zod": "^3.23.8" } }, "sha512-XahgMZQ5xHZ1miTPpcihRR6QZBUOm5zYj7XYwvlvuOgOXzMpjzp+o5ksHeJ2OnrlxbRs8nyWbOn5VQrCSZyokQ=="],
+    "hume": ["hume@0.14.0", "", { "dependencies": { "isomorphic-ws": "^5.0.0", "node-fetch": "^2.7.0", "qs": "^6.13.1", "readable-stream": "^4.5.2", "url-join": "4.0.1", "uuid": "9.0.1", "ws": "^8.14.2", "zod": "^3.23.8" } }, "sha512-6xT1pVi8haS9a/q6QeuN6VHWes5sIkp3PHyT52GDYLOJdoF+kxGCRyhGrLSVRnh/2baqlNgi66nMKPz5sTi3Tw=="],
 
     "ieee754": ["ieee754@1.2.1", "", {}, "sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA=="],
 

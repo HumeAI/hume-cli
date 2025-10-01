@@ -392,9 +392,7 @@ class MockHumeServer {
         }
 
         return new Response(
-          snippets!
-            .map((x) => JSON.stringify({ type: 'audio', ...x }) + '\n')
-            .join(''),
+          snippets!.map((x) => JSON.stringify({ type: 'audio', ...x }) + '\n').join(''),
           {
             status: 200,
             headers: { 'Content-Type': 'text-plain; charset=utf-8' },

@@ -179,3 +179,5 @@ bin
 mcp
 CLAUDE.md
 *.bun-build
+
+package-lock.json

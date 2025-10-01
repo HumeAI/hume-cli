@@ -391,10 +391,13 @@ class MockHumeServer {
           });
         }
 
-        return new Response(snippets!.map((x) => JSON.stringify(x) + '\n').join(''), {
-          status: 200,
-          headers: { 'Content-Type': 'text-plain; charset=utf-8' },
-        });
+        return new Response(
+          snippets!.map((x) => JSON.stringify({ type: 'audio', ...x }) + '\n').join(''),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'text-plain; charset=utf-8' },
+          }
+        );
       } catch (error) {
         log(`Error in mock handler: ${error}`);
         return new Response(JSON.stringify({ error: 'Internal server error' }), {
@@ -555,6 +558,7 @@ describe('CLI End-to-End Tests', () => {
         utterance_index: partial.utteranceIndex ?? 0,
         transcribed_text: null,
         audio,
+        timestamps: [],
       },
     };
   };

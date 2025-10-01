@@ -28,6 +28,7 @@ const usageDescriptions = {
   'tts.streaming': 'Use streaming mode for TTS generation (default: true)',
   'tts.instantMode':
     'Enable ultra-low latency mode for significantly faster generation (requires streaming=true, a voice, and incurs 10% higher cost)',
+  'tts.modelVersion': "Either '1' for Octave 1 or '2' for Octave 2.",
   apiKey: 'Override the default API key',
   json: 'Output in JSON format',
   pretty: 'Output in human-readable format',
@@ -454,6 +455,11 @@ class TtsCommand extends Command {
 
   instantMode = Option.Boolean('--instant-mode', {
     description: usageDescriptions['tts.instantMode'],
+  });
+
+  modelVersion = Option.String('--model', {
+    description: usageDescriptions['tts.modelVersion'],
+    validator: t.isEnum(['1', '2'] as const),
   });
 
   async execute() {

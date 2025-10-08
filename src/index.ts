@@ -462,7 +462,7 @@ class TtsCommand extends Command {
     validator: t.isEnum(['1', '2'] as const),
   });
 
-  requestBody = Option.String('--request-body', {
+  requestJson = Option.String('--request-json', {
     description:
       'Override the request body with a hardcoded JSON string instead of generating it from options',
   });

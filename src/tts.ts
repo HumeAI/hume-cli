@@ -117,7 +117,7 @@ export type SynthesisOpts = CommonOpts & {
   streaming?: boolean;
   instantMode?: boolean;
   modelVersion?: '1' | '2';
-  requestBody?: string;
+  requestJson?: string;
 };
 
 export class Tts {
@@ -320,7 +320,7 @@ export class Tts {
     const streaming = osgd('streaming').item;
     const instantMode = osgd('instantMode').item;
     const modelVersion = osgd('modelVersion').item;
-    const requestBody = opts.requestBody ?? null;
+    const requestJson = opts.requestJson ?? null;
 
     // VoiceId and voiceName are mutually exclusive within opts, but
     // not across layers. VoiceId defined with greater priority should
@@ -358,7 +358,7 @@ export class Tts {
       streaming,
       instantMode,
       modelVersion,
-      requestBody,
+      requestJson,
     };
   }
 
@@ -382,13 +382,13 @@ export class Tts {
     const { session, globalConfig, env, reporter, hume } = await this.getSettings(rawOpts);
     const opts = Tts.resolveOpts(env, globalConfig, session, rawOpts);
 
-    // Validate that either text or requestBody is provided, but not both
-    if (!opts.text && !opts.requestBody) {
-      throw new Error('Either text parameter or --request-body must be provided');
+    // Validate that either text or requestJson is provided, but not both
+    if (!opts.text && !opts.requestJson) {
+      throw new Error('Either text parameter or --request-json must be provided');
     }
-    if (opts.text && opts.requestBody) {
+    if (opts.text && opts.requestJson) {
       throw new Error(
-        'Cannot specify both text parameter and --request-body. Use one or the other.'
+        'Cannot specify both text parameter and --request-json. Use one or the other.'
       );
     }
 
@@ -414,21 +414,18 @@ export class Tts {
 
     let tts: Hume.tts.PostedTts;
 
-    // If requestBody is provided, parse it as JSON and use it directly
-    if (opts.requestBody) {
+    // If requestJson is provided, parse it as JSON and use it directly
+    if (opts.requestJson) {
       try {
-        tts = JSON.parse(String(opts.requestBody));
+        tts = JSON.parse(String(opts.requestJson));
         debug('Using hardcoded request body: %O', JSON.stringify(tts, null, 2));
       } catch (error) {
         throw new Error(
-          `Invalid JSON in --request-body: ${error instanceof Error ? error.message : 'Unknown error'}`
+          `Invalid JSON in --request-json: ${error instanceof Error ? error.message : 'Unknown error'}`
         );
       }
     } else {
       // Build TTS object from options as usual
-      debug('modelVersion value: %O', opts.modelVersion);
-      debug('modelVersion !== null: %O', opts.modelVersion !== null);
-
       const baseTts = {
         utterances: [utterance],
         numGenerations: outputOpts.numGenerations,
@@ -442,14 +439,12 @@ export class Tts {
         tts = baseTts;
       }
 
-      debug('Final TTS object: %O', JSON.stringify(tts, null, 2));
-
       // First add context to support continuation
       await this.maybeAddContext(opts, tts);
     }
 
     // Validate instant_mode requirements (only when not using hardcoded request body)
-    if (opts.instantMode && !opts.requestBody) {
+    if (opts.instantMode && !opts.requestJson) {
       if (!opts.streaming) {
         throw new Error('Instant mode requires streaming to be enabled');
       }

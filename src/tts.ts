@@ -96,7 +96,7 @@ const calculateUtterance = (opts: {
 };
 
 export type SynthesisOpts = CommonOpts & {
-  text: string;
+  text?: string;
   voiceName?: string;
   voiceId?: string;
   description?: string;
@@ -117,6 +117,7 @@ export type SynthesisOpts = CommonOpts & {
   streaming?: boolean;
   instantMode?: boolean;
   modelVersion?: '1' | '2';
+  requestBody?: string;
 };
 
 export class Tts {
@@ -150,6 +151,7 @@ export class Tts {
     trailingSilence: null,
     streaming: true,
     instantMode: false,
+    modelVersion: null,
   };
 
   private async writeFiles(
@@ -317,6 +319,8 @@ export class Tts {
     const trailingSilence = osgd('trailingSilence').item;
     const streaming = osgd('streaming').item;
     const instantMode = osgd('instantMode').item;
+    const modelVersion = osgd('modelVersion').item;
+    const requestBody = opts.requestBody ?? null;
 
     // VoiceId and voiceName are mutually exclusive within opts, but
     // not across layers. VoiceId defined with greater priority should
@@ -353,6 +357,8 @@ export class Tts {
       trailingSilence,
       streaming,
       instantMode,
+      modelVersion,
+      requestBody,
     };
   }
 
@@ -375,6 +381,17 @@ export class Tts {
   async synthesize(rawOpts: SynthesisOpts) {
     const { session, globalConfig, env, reporter, hume } = await this.getSettings(rawOpts);
     const opts = Tts.resolveOpts(env, globalConfig, session, rawOpts);
+
+    // Validate that either text or requestBody is provided, but not both
+    if (!opts.text && !opts.requestBody) {
+      throw new Error('Either text parameter or --request-body must be provided');
+    }
+    if (opts.text && opts.requestBody) {
+      throw new Error(
+        'Cannot specify both text parameter and --request-body. Use one or the other.'
+      );
+    }
+
     const outputOpts = calculateOutputOpts(opts);
     if (opts.presetVoice) {
       reporter.warn(
@@ -389,24 +406,50 @@ export class Tts {
 
     const utterance = calculateUtterance({
       ...opts,
-      text,
+      text: text || '',
       speed: opts.speed,
       trailingSilence: opts.trailingSilence,
       provider: opts.provider,
     });
 
-    const tts: Hume.tts.PostedTts = {
-      utterances: [utterance],
-      numGenerations: outputOpts.numGenerations,
-      format: { type: opts.format },
-      version: opts.modelVersion ?? undefined,
-    };
+    let tts: Hume.tts.PostedTts;
 
-    // First add context to support continuation
-    await this.maybeAddContext(opts, tts);
+    // If requestBody is provided, parse it as JSON and use it directly
+    if (opts.requestBody) {
+      try {
+        tts = JSON.parse(String(opts.requestBody));
+        debug('Using hardcoded request body: %O', JSON.stringify(tts, null, 2));
+      } catch (error) {
+        throw new Error(
+          `Invalid JSON in --request-body: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+      }
+    } else {
+      // Build TTS object from options as usual
+      debug('modelVersion value: %O', opts.modelVersion);
+      debug('modelVersion !== null: %O', opts.modelVersion !== null);
 
-    // Validate instant_mode requirements
-    if (opts.instantMode) {
+      const baseTts = {
+        utterances: [utterance],
+        numGenerations: outputOpts.numGenerations,
+        format: { type: opts.format },
+      };
+
+      // Only add version field if modelVersion is explicitly set (not null)
+      if (opts.modelVersion !== null) {
+        tts = { ...baseTts, version: opts.modelVersion };
+      } else {
+        tts = baseTts;
+      }
+
+      debug('Final TTS object: %O', JSON.stringify(tts, null, 2));
+
+      // First add context to support continuation
+      await this.maybeAddContext(opts, tts);
+    }
+
+    // Validate instant_mode requirements (only when not using hardcoded request body)
+    if (opts.instantMode && !opts.requestBody) {
       if (!opts.streaming) {
         throw new Error('Instant mode requires streaming to be enabled');
       }

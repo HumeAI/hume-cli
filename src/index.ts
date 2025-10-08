@@ -374,7 +374,7 @@ class TtsCommand extends Command {
     }
   );
 
-  text = Option.String({ required: true, name: 'text' });
+  text = Option.String({ required: false, name: 'text' });
   description = Option.String('-d,--description', {
     description: usageDescriptions['tts.description'],
   });
@@ -460,6 +460,11 @@ class TtsCommand extends Command {
   modelVersion = Option.String('--model', {
     description: usageDescriptions['tts.modelVersion'],
     validator: t.isEnum(['1', '2'] as const),
+  });
+
+  requestBody = Option.String('--request-body', {
+    description:
+      'Override the request body with a hardcoded JSON string instead of generating it from options',
   });
 
   async execute() {

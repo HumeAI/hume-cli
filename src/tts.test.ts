@@ -758,4 +758,84 @@ describe('instant mode functionality', () => {
       ],
     ]);
   });
+
+  test('omits version field when --last is used without explicit model version', async () => {
+    const lastGeneration = {
+      ids: ['gen_1'],
+      timestamp: Date.now(),
+    };
+
+    const synthesizeJson = mock(() =>
+      Promise.resolve({
+        generations: [
+          {
+            generationId: 'gen_1',
+            audio: 'mock-audio-data',
+          },
+        ],
+      })
+    );
+
+    const { tts } = setupTest({
+      getLastSynthesis: mock(() => Promise.resolve(lastGeneration)),
+      synthesizeJson,
+    });
+
+    await tts.synthesize({
+      text: 'Hello world',
+      last: true,
+      streaming: false,
+    });
+
+    // Verify that the version field is not included in the request
+    expect(synthesizeJson.mock.calls).toEqual([
+      [
+        expect.objectContaining({
+          context: { generationId: 'gen_1' },
+          utterances: [{ text: 'Hello world' }],
+          numGenerations: 1,
+          format: { type: 'wav' },
+        }),
+      ],
+    ]);
+
+    // Ensure version field is not present
+    const requestPayload = synthesizeJson.mock.calls[0][0];
+    expect(requestPayload).not.toHaveProperty('version');
+  });
+
+  test('includes version field when explicit model version is provided', async () => {
+    const synthesizeJson = mock(() =>
+      Promise.resolve({
+        generations: [
+          {
+            generationId: 'gen_1',
+            audio: 'mock-audio-data',
+          },
+        ],
+      })
+    );
+
+    const { tts } = setupTest({
+      synthesizeJson,
+    });
+
+    await tts.synthesize({
+      text: 'Hello world',
+      modelVersion: '2',
+      streaming: false,
+    });
+
+    // Verify that the version field is included in the request
+    expect(synthesizeJson.mock.calls).toEqual([
+      [
+        expect.objectContaining({
+          utterances: [{ text: 'Hello world' }],
+          numGenerations: 1,
+          format: { type: 'wav' },
+          version: '2',
+        }),
+      ],
+    ]);
+  });
 });

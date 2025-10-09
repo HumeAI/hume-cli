@@ -524,8 +524,80 @@ class LoginCommand extends Command {
   }
 }
 
+class TtsStreamInputCommand extends Command {
+  static paths = [['tts-stream-input']];
+  static usage = Command.Usage({
+    description: 'Interactive streaming text-to-speech',
+    details: `Connects to the Hume TTS streaming API and reads text input line-by-line from stdin.
+    Each line is sent to the API and audio is played back in real-time.
+    
+    Lines that parse as valid JSON are sent directly as TTS messages.
+    Other lines are wrapped as text with the configured voice settings.`,
+    examples: [
+      ['Stream with a voice', 'tts-stream-input --voice-name "Ava Song" --provider HUME_AI'],
+      ['Stream without audio playback', 'tts-stream-input --voice-name narrator --no-play'],
+      ['Stream with custom audio player', 'tts-stream-input -v narrator --play-command "mpv --no-video -"'],
+    ],
+  });
+
+  voiceName = Option.String('-v,--voice-name', {
+    description: usageDescriptions['tts.voiceName'],
+  });
+  voiceId = Option.String('--voice-id', {
+    description: usageDescriptions['tts.voiceId'],
+  });
+  description = Option.String('-d,--description', {
+    description: usageDescriptions['tts.description'],
+  });
+  provider = Option.String('--provider', {
+    description: usageDescriptions['tts.provider'],
+    validator: t.isEnum(['CUSTOM_VOICE', 'HUME_AI'] as const),
+  });
+  speed = Option.String('--speed', {
+    validator: t.cascade(t.isNumber(), t.isInInclusiveRange(0.25, 3.0)),
+    description: usageDescriptions['tts.speed'],
+  });
+  trailingSilence = Option.String('--trailing-silence', {
+    validator: t.cascade(t.isNumber(), t.isInInclusiveRange(0.0, 5.0)),
+    description: usageDescriptions['tts.trailingSilence'],
+  });
+  instantMode = Option.Boolean('--instant-mode', {
+    description: usageDescriptions['tts.instantMode'],
+  });
+  playCommand = Option.String('--play-command', {
+    description: usageDescriptions['tts.playCommand'],
+  });
+  play = Option.Boolean('--play', {
+    description: 'Enable audio playback (default: true)',
+  });
+  noPlay = Option.Boolean('--no-play', {
+    description: 'Disable audio playback',
+  });
+  apiKey = Option.String('--api-key', {
+    description: usageDescriptions.apiKey,
+  });
+  baseUrl = Option.String('--base-url', {
+    description: 'Override the default API base URL (for testing purposes)',
+  });
+  json = Option.Boolean('--json', {
+    description: usageDescriptions.json,
+  });
+  pretty = Option.Boolean('--pretty', {
+    description: usageDescriptions.pretty,
+  });
+
+  async execute() {
+    const tts = new Tts();
+    await tts.streamInput({
+      ...this,
+      play: this.noPlay ? false : this.play ?? true,
+    });
+  }
+}
+
 cli.register(RootCommand);
 cli.register(TtsCommand);
+cli.register(TtsStreamInputCommand);
 cli.register(LoginCommand);
 cli.register(SessionRootCommand);
 cli.register(SaveVoiceCommand);

@@ -152,3 +152,69 @@ export const withStdinAudioPlayer = async (
     });
   });
 };
+
+const SAMPLE_RATE = 48000;
+
+export const withPcmAudioPlayer = async (
+  customCommand: string | null,
+  f: (writeAudio: (audioBuffer: Buffer) => void) => Promise<void>
+): Promise<void> => {
+  // For PCM streaming, we need special ffplay args for raw audio
+  if (customCommand) {
+    return withStdinAudioPlayer(customCommand, f);
+  }
+
+  const { spawn } = require('child_process');
+  const args = [
+    '-f',
+    's16le',
+    '-ar',
+    `${SAMPLE_RATE}`,
+    '-fflags',
+    'nobuffer',
+    '-flags',
+    'low_delay',
+    '-probesize',
+    '32',
+    '-analyzeduration',
+    '0',
+    '-i',
+    '-',
+    '-nodisp',
+    '-autoexit',
+  ];
+
+  debug(['ffplay', args]);
+
+  const proc = spawn('ffplay', args, {
+    stdio: ['pipe', 'ignore', 'ignore'],
+  });
+
+  proc.on('error', (err: any) => {
+    if (err.message.includes('ENOENT')) {
+      throw new Error(
+        'Could not find `ffplay` binary. Please install ffmpeg to play audio, or specify a custom player with --play-command'
+      );
+    }
+  });
+
+  await f((audioBuffer) => {
+    proc.stdin.write(audioBuffer);
+  });
+
+  proc.stdin.end();
+
+  return new Promise((resolve, reject) => {
+    proc.on('close', (code: number) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(`Process exited with code ${code}`));
+      }
+    });
+
+    proc.on('error', (err: any) => {
+      reject(err);
+    });
+  });
+};

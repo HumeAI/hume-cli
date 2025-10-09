@@ -13,8 +13,11 @@ import {
 } from './common';
 import type { ConfigData } from './config';
 import type { Hume, HumeClient } from 'hume';
-import { playAudioFile, withStdinAudioPlayer } from './play_audio';
+import { playAudioFile, withStdinAudioPlayer, withPcmAudioPlayer } from './play_audio';
 import HumeSerialization from 'hume/serialization';
+import { StreamingTtsClient, type PublishTts } from './streaming';
+import { createInterface } from 'readline';
+import { createSilenceFiller } from 'hume';
 
 type SynthesisOutputOpts =
   | {
@@ -128,6 +131,18 @@ export type SynthesisOpts = CommonOpts & {
   modelVersion?: '1' | '2';
   requestJson?: string;
   curl?: boolean;
+};
+
+export type StreamInputOpts = CommonOpts & {
+  voiceName?: string;
+  voiceId?: string;
+  description?: string;
+  provider?: 'CUSTOM_VOICE' | 'HUME_AI';
+  speed?: number;
+  trailingSilence?: number;
+  instantMode?: boolean;
+  playCommand?: string;
+  play?: boolean;
 };
 
 export class Tts {
@@ -656,5 +671,184 @@ export class Tts {
 
     reporter.info('Generated curl command:');
     console.log(curlCommand);
+  }
+
+  async streamInput(rawOpts: StreamInputOpts) {
+    const { session, globalConfig, env, reporter } = await this.getSettings(rawOpts);
+
+    // Get API key
+    const apiKey = rawOpts.apiKey ?? session.apiKey ?? globalConfig.apiKey ?? env.HUME_API_KEY;
+    if (!apiKey) {
+      throw new ApiKeyNotSetError();
+    }
+
+    // Get base URL
+    const baseUrl =
+      rawOpts.baseUrl ?? env.HUME_BASE_URL ?? session.baseUrl ?? globalConfig.baseUrl;
+
+    // Resolve options with defaults
+    const voiceName = rawOpts.voiceName ?? session.tts?.voiceName ?? globalConfig.tts?.voiceName;
+    const voiceId = rawOpts.voiceId ?? session.tts?.voiceId ?? globalConfig.tts?.voiceId;
+    const description =
+      rawOpts.description ?? session.tts?.description ?? globalConfig.tts?.description;
+    const provider = rawOpts.provider ?? session.tts?.provider ?? globalConfig.tts?.provider;
+    const speed = rawOpts.speed ?? session.tts?.speed ?? globalConfig.tts?.speed;
+    const trailingSilence =
+      rawOpts.trailingSilence ??
+      session.tts?.trailingSilence ??
+      globalConfig.tts?.trailingSilence;
+    const instantMode =
+      rawOpts.instantMode ?? session.tts?.instantMode ?? globalConfig.tts?.instantMode ?? true;
+    const playCommand =
+      rawOpts.playCommand ?? session.tts?.playCommand ?? globalConfig.tts?.playCommand;
+    const play = rawOpts.play ?? true;
+
+    // Build voice object
+    let voice: Hume.tts.PostedUtteranceVoice | undefined;
+    if (voiceName) {
+      voice =
+        provider === 'HUME_AI'
+          ? { name: voiceName, provider: 'HUME_AI' }
+          : { name: voiceName };
+    } else if (voiceId) {
+      voice =
+        provider === 'HUME_AI' ? { id: voiceId, provider: 'HUME_AI' } : { id: voiceId };
+    }
+
+    // Connect to WebSocket
+    let client: StreamingTtsClient;
+    try {
+      await reporter.withSpinner('Connecting to streaming API...', async () => {
+        client = await StreamingTtsClient.connect({
+          apiKey,
+          baseUrl,
+          instantMode,
+          formatType: 'pcm',
+          stripHeaders: true,
+        });
+      });
+    } catch (error) {
+      throw new Error(
+        `Failed to connect to streaming API: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+
+    reporter.info('Connected. Please type your text (Ctrl+D or Ctrl+C to exit):');
+
+    // Set up readline interface
+    const rl = createInterface({
+      input: process.stdin,
+      output: process.stdout,
+      terminal: false,
+    });
+
+    // Handle audio playback in parallel
+    const handleAudioPlayback = async () => {
+      if (!play) {
+        // Just consume the messages without playing
+        for await (const _chunk of client!) {
+          // Do nothing
+        }
+        return;
+      }
+
+      const SilenceFiller = await createSilenceFiller();
+      const silenceFiller = new SilenceFiller();
+
+      const playbackPromise = withPcmAudioPlayer(playCommand ?? null, async (writeAudio) => {
+        silenceFiller.on('data', (chunk: Buffer) => {
+          writeAudio(chunk);
+        });
+
+        silenceFiller.on('error', (err: Error) => {
+          debug('SilenceFiller error: %O', err);
+        });
+
+        for await (const chunk of client!) {
+          if (chunk.audio) {
+            const buf = Buffer.from(chunk.audio, 'base64');
+            silenceFiller.writeAudio(buf);
+          }
+        }
+
+        await silenceFiller.endStream();
+      });
+
+      await playbackPromise;
+    };
+
+    // Handle input
+    const handleInput = async () => {
+      try {
+        for await (const line of rl) {
+          if (!line.trim()) continue;
+
+          // Try to parse as JSON
+          let message: PublishTts;
+          try {
+            const parsed = JSON.parse(line);
+            // If it parses as JSON, send it directly
+            message = parsed;
+            debug('Sending JSON message: %O', message);
+          } catch {
+            // Not JSON, wrap as text message
+            message = {
+              text: line,
+              flush: true,
+            };
+
+            // Add voice if configured
+            if (voice) {
+              message.voice = voice;
+            }
+            if (description) {
+              message.description = description;
+            }
+            if (speed !== null && speed !== undefined) {
+              message.speed = speed;
+            }
+            if (trailingSilence !== null && trailingSilence !== undefined) {
+              message.trailingSilence = trailingSilence;
+            }
+
+            debug('Sending text message: %O', message);
+          }
+
+          client!.send(message);
+        }
+      } finally {
+        // When input ends, close the connection
+        debug('Input ended, closing connection');
+        client!.sendClose();
+      }
+    };
+
+    // Handle Ctrl+C gracefully
+    const handleExit = () => {
+      debug('Received exit signal');
+      try {
+        client?.disconnect();
+      } catch (error) {
+        debug('Error disconnecting: %O', error);
+      }
+      process.exit(0);
+    };
+
+    process.on('SIGINT', handleExit);
+    process.on('SIGTERM', handleExit);
+
+    try {
+      // Run input and playback in parallel
+      await Promise.all([handleInput(), handleAudioPlayback()]);
+    } catch (error) {
+      reporter.warn(
+        `Error during streaming: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+      throw error;
+    } finally {
+      process.off('SIGINT', handleExit);
+      process.off('SIGTERM', handleExit);
+      rl.close();
+    }
   }
 }

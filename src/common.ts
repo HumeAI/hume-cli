@@ -126,3 +126,42 @@ export const getHumeClient = (opts: { apiKey: string; baseUrl?: string }) => {
     environment: opts.baseUrl ?? 'https://api.hume.ai',
   });
 };
+
+export type ApiKeyProvenance = {
+  source: 'flag' | 'env' | 'global' | 'session';
+  value: string;
+};
+
+export const getApiKeyProvenance = (
+  opts: CommonOpts,
+  globalConfig: ConfigData,
+  session: ConfigData,
+  env: typeof process.env
+): ApiKeyProvenance | null => {
+  if (opts.apiKey) {
+    return { source: 'flag', value: opts.apiKey };
+  }
+  if (env.HUME_API_KEY) {
+    return { source: 'env', value: env.HUME_API_KEY };
+  }
+  if (session.apiKey) {
+    return { source: 'session', value: session.apiKey };
+  }
+  if (globalConfig.apiKey) {
+    return { source: 'global', value: globalConfig.apiKey };
+  }
+  return null;
+};
+
+export const formatApiKeyForCurl = (provenance: ApiKeyProvenance): string => {
+  switch (provenance.source) {
+    case 'flag':
+      return provenance.value;
+    case 'env':
+      return '$HUME_API_KEY';
+    case 'global':
+      return "$(hume config show | jq '.apiKey')";
+    case 'session':
+      return "$(hume session show | jq '.apiKey')";
+  }
+};

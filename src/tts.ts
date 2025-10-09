@@ -2,10 +2,19 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { getLastSynthesisFromHistory, saveLastSynthesisToHistory } from './history';
 import { join, dirname } from 'path';
 import { assert } from 'node:console';
-import { debug, type CommonOpts, getSettings, ApiKeyNotSetError, type Reporter } from './common';
+import {
+  debug,
+  type CommonOpts,
+  getSettings,
+  ApiKeyNotSetError,
+  type Reporter,
+  formatApiKeyForCurl,
+  getApiKeyProvenance,
+} from './common';
 import type { ConfigData } from './config';
 import type { Hume, HumeClient } from 'hume';
 import { playAudioFile, withStdinAudioPlayer } from './play_audio';
+import HumeSerialization from 'hume/serialization';
 
 type SynthesisOutputOpts =
   | {
@@ -96,7 +105,7 @@ const calculateUtterance = (opts: {
 };
 
 export type SynthesisOpts = CommonOpts & {
-  text: string;
+  text?: string;
   voiceName?: string;
   voiceId?: string;
   description?: string;
@@ -117,6 +126,8 @@ export type SynthesisOpts = CommonOpts & {
   streaming?: boolean;
   instantMode?: boolean;
   modelVersion?: '1' | '2';
+  requestJson?: string;
+  curl?: boolean;
 };
 
 export class Tts {
@@ -150,6 +161,7 @@ export class Tts {
     trailingSilence: null,
     streaming: true,
     instantMode: false,
+    modelVersion: null,
   };
 
   private async writeFiles(
@@ -317,6 +329,8 @@ export class Tts {
     const trailingSilence = osgd('trailingSilence').item;
     const streaming = osgd('streaming').item;
     const instantMode = osgd('instantMode').item;
+    const modelVersion = osgd('modelVersion').item;
+    const requestJson = opts.requestJson ?? null;
 
     // VoiceId and voiceName are mutually exclusive within opts, but
     // not across layers. VoiceId defined with greater priority should
@@ -353,6 +367,8 @@ export class Tts {
       trailingSilence,
       streaming,
       instantMode,
+      modelVersion,
+      requestJson,
     };
   }
 
@@ -375,6 +391,17 @@ export class Tts {
   async synthesize(rawOpts: SynthesisOpts) {
     const { session, globalConfig, env, reporter, hume } = await this.getSettings(rawOpts);
     const opts = Tts.resolveOpts(env, globalConfig, session, rawOpts);
+
+    // Validate that either text or requestJson is provided, but not both
+    if (!opts.text && !opts.requestJson) {
+      throw new Error('Either text parameter or --request-json must be provided');
+    }
+    if (opts.text && opts.requestJson) {
+      throw new Error(
+        'Cannot specify both text parameter and --request-json. Use one or the other.'
+      );
+    }
+
     const outputOpts = calculateOutputOpts(opts);
     if (opts.presetVoice) {
       reporter.warn(
@@ -389,24 +416,45 @@ export class Tts {
 
     const utterance = calculateUtterance({
       ...opts,
-      text,
+      text: text || '',
       speed: opts.speed,
       trailingSilence: opts.trailingSilence,
       provider: opts.provider,
     });
 
-    const tts: Hume.tts.PostedTts = {
-      utterances: [utterance],
-      numGenerations: outputOpts.numGenerations,
-      format: { type: opts.format },
-      version: opts.modelVersion ?? undefined,
-    };
+    let tts: Hume.tts.PostedTts;
 
-    // First add context to support continuation
-    await this.maybeAddContext(opts, tts);
+    // If requestJson is provided, parse it as JSON and use it directly
+    if (opts.requestJson) {
+      try {
+        tts = JSON.parse(String(opts.requestJson));
+        debug('Using hardcoded request body: %O', JSON.stringify(tts, null, 2));
+      } catch (error) {
+        throw new Error(
+          `Invalid JSON in --request-json: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+      }
+    } else {
+      // Build TTS object from options as usual
+      const baseTts = {
+        utterances: [utterance],
+        numGenerations: outputOpts.numGenerations,
+        format: { type: opts.format },
+      };
 
-    // Validate instant_mode requirements
-    if (opts.instantMode) {
+      // Only add version field if modelVersion is explicitly set (not null)
+      if (opts.modelVersion !== null) {
+        tts = { ...baseTts, version: opts.modelVersion };
+      } else {
+        tts = baseTts;
+      }
+
+      // First add context to support continuation
+      await this.maybeAddContext(opts, tts);
+    }
+
+    // Validate instant_mode requirements (only when not using hardcoded request body)
+    if (opts.instantMode && !opts.requestJson) {
       if (!opts.streaming) {
         throw new Error('Instant mode requires streaming to be enabled');
       }
@@ -423,6 +471,11 @@ export class Tts {
 
     if (!hume) {
       throw new ApiKeyNotSetError();
+    }
+
+    // Handle curl generation
+    if (opts.curl) {
+      return this.generateCurlCommand(opts, env, globalConfig, session, reporter, tts);
     }
 
     if (opts.streaming) {
@@ -565,5 +618,43 @@ export class Tts {
     reporter.json({ result, written_files: writtenFiles });
 
     await this.playAudios(opts.play, writtenFiles, reporter, opts.playCommand ?? null);
+  }
+
+  private async generateCurlCommand(
+    opts: ReturnType<typeof Tts.resolveOpts>,
+    env: typeof process.env,
+    globalConfig: ConfigData,
+    session: ConfigData,
+    reporter: Reporter,
+    tts: Hume.tts.PostedTts
+  ) {
+    const apiKeyProvenance = getApiKeyProvenance(opts, globalConfig, session, env);
+    if (!apiKeyProvenance) {
+      throw new ApiKeyNotSetError();
+    }
+
+    const baseUrl =
+      opts.baseUrl ??
+      env.HUME_BASE_URL ??
+      session.baseUrl ??
+      globalConfig.baseUrl ??
+      'https://api.hume.ai';
+    const apiKey = formatApiKeyForCurl(apiKeyProvenance);
+
+    // Determine the endpoint based on streaming mode
+    const endpoint = opts.streaming ? '/v0/tts/stream/json' : '/v0/tts';
+    const url = `${baseUrl}${endpoint}`;
+
+    const serialized = HumeSerialization.tts.PostedTts.jsonOrThrow(tts);
+
+    // Generate curl command with URL first
+    const curlCommand = [
+      `curl "${url}"`,
+      `  -H "X-Hume-Api-Key: ${apiKey}"`,
+      `  --json '${JSON.stringify(serialized)}'`,
+    ].join(' \\\n');
+
+    reporter.info('Generated curl command:');
+    console.log(curlCommand);
   }
 }

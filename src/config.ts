@@ -34,6 +34,7 @@ export type ConfigData = {
     trailingSilence?: number;
     streaming?: boolean;
     instantMode?: boolean;
+    modelVersion?: '1' | '2';
   };
   json?: boolean;
   pretty?: boolean;
@@ -56,6 +57,7 @@ export const configValidators = {
   'tts.trailingSilence': t.cascade(t.isNumber(), t.isInInclusiveRange(0.0, 5.0)),
   'tts.streaming': t.isBoolean(),
   'tts.instantMode': t.isBoolean(),
+  'tts.modelVersion': t.isEnum(['1', '2'] as const),
   json: t.isBoolean(),
   pretty: t.isBoolean(),
   apiKey: t.isString(),

@@ -2,10 +2,11 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { getLastSynthesisFromHistory, saveLastSynthesisToHistory } from './history';
 import { join, dirname } from 'path';
 import { assert } from 'node:console';
-import { debug, type CommonOpts, getSettings, ApiKeyNotSetError, type Reporter } from './common';
+import { debug, type CommonOpts, getSettings, ApiKeyNotSetError, type Reporter, formatApiKeyForCurl, getApiKeyProvenance } from './common';
 import type { ConfigData } from './config';
 import type { Hume, HumeClient } from 'hume';
 import { playAudioFile, withStdinAudioPlayer } from './play_audio';
+import HumeSerialization from 'hume/serialization'
 
 type SynthesisOutputOpts =
   | {
@@ -118,6 +119,7 @@ export type SynthesisOpts = CommonOpts & {
   instantMode?: boolean;
   modelVersion?: '1' | '2';
   requestJson?: string;
+  curl?: boolean;
 };
 
 export class Tts {
@@ -392,6 +394,7 @@ export class Tts {
       );
     }
 
+
     const outputOpts = calculateOutputOpts(opts);
     if (opts.presetVoice) {
       reporter.warn(
@@ -428,9 +431,13 @@ export class Tts {
       // Build TTS object from options as usual
       const baseTts = {
         utterances: [utterance],
-        numGenerations: outputOpts.numGenerations,
         format: { type: opts.format },
       };
+
+      // Only include numGenerations for non-streaming endpoints
+      if (!opts.streaming) {
+        baseTts.numGenerations = outputOpts.numGenerations;
+      }
 
       // Only add version field if modelVersion is explicitly set (not null)
       if (opts.modelVersion !== null) {
@@ -461,6 +468,11 @@ export class Tts {
 
     if (!hume) {
       throw new ApiKeyNotSetError();
+    }
+
+    // Handle curl generation
+    if (opts.curl) {
+      return this.generateCurlCommand(opts, env, globalConfig, session, reporter, tts);
     }
 
     if (opts.streaming) {
@@ -603,5 +615,38 @@ export class Tts {
     reporter.json({ result, written_files: writtenFiles });
 
     await this.playAudios(opts.play, writtenFiles, reporter, opts.playCommand ?? null);
+  }
+
+  private async generateCurlCommand(
+    opts: ReturnType<typeof Tts.resolveOpts>,
+    env: typeof process.env,
+    globalConfig: ConfigData,
+    session: ConfigData,
+    reporter: Reporter,
+    tts: Hume.tts.PostedTts
+  ) {
+    const apiKeyProvenance = getApiKeyProvenance(opts, globalConfig, session, env);
+    if (!apiKeyProvenance) {
+      throw new ApiKeyNotSetError();
+    }
+
+    const baseUrl = opts.baseUrl ?? env.HUME_BASE_URL ?? session.baseUrl ?? globalConfig.baseUrl ?? 'https://api.hume.ai';
+    const apiKey = formatApiKeyForCurl(apiKeyProvenance);
+
+    // Determine the endpoint based on streaming mode
+    const endpoint = opts.streaming ? '/v0/tts/stream/json' : '/v0/tts';
+    const url = `${baseUrl}${endpoint}`;
+
+    const serialized = HumeSerialization.tts.PostedTts.jsonOrThrow(tts)
+    
+    // Generate curl command with URL first
+    const curlCommand = [
+      `curl "${url}"`,
+      `  -H "X-Hume-Api-Key: ${apiKey}"`,
+      `  --json '${JSON.stringify(serialized)}'`
+    ].join(' \\\n');
+
+    reporter.info('Generated curl command:');
+    console.log(curlCommand);
   }
 }

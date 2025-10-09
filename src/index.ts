@@ -29,6 +29,7 @@ const usageDescriptions = {
   'tts.instantMode':
     'Enable ultra-low latency mode for significantly faster generation (requires streaming=true, a voice, and incurs 10% higher cost)',
   'tts.modelVersion': "Either '1' for Octave 1 or '2' for Octave 2.",
+  'tts.curl': 'Generate curl command instead of making the API request',
   apiKey: 'Override the default API key',
   json: 'Output in JSON format',
   pretty: 'Output in human-readable format',
@@ -465,6 +466,10 @@ class TtsCommand extends Command {
   requestJson = Option.String('--request-json', {
     description:
       'Override the request body with a hardcoded JSON string instead of generating it from options',
+  });
+
+  curl = Option.Boolean('--curl', {
+    description: usageDescriptions['tts.curl'],
   });
 
   async execute() {

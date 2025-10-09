@@ -462,7 +462,7 @@ describe('continue functionality', () => {
 
     const synthesizeJsonStreaming = mockSynthesizeJsonStreaming([snippy(10)]);
 
-    const { tts, mocks } = setupTest({
+    const { tts} = setupTest({
       getLastSynthesis: mock(() => Promise.resolve(lastGeneration)),
       synthesizeJsonStreaming,
     });
@@ -765,7 +765,7 @@ describe('instant mode functionality', () => {
       timestamp: Date.now(),
     };
 
-    const synthesizeJson = mock(() =>
+    const synthesizeJson: Mock<HumeClient['tts']['synthesizeJson']> = mock(() =>
       Promise.resolve({
         generations: [
           {
@@ -773,7 +773,7 @@ describe('instant mode functionality', () => {
             audio: 'mock-audio-data',
           },
         ],
-      })
+      }) as any
     );
 
     const { tts } = setupTest({
@@ -805,7 +805,7 @@ describe('instant mode functionality', () => {
   });
 
   test('includes version field when explicit model version is provided', async () => {
-    const synthesizeJson = mock(() =>
+    const synthesizeJson: Mock<HumeClient['tts']['synthesizeJson']> = mock(() =>
       Promise.resolve({
         generations: [
           {
@@ -813,7 +813,7 @@ describe('instant mode functionality', () => {
             audio: 'mock-audio-data',
           },
         ],
-      })
+      }) as any
     );
 
     const { tts } = setupTest({

@@ -61,6 +61,7 @@ $ hume tts <text>
 --trailing-silence #0 Seconds of silence to add at the end (0.0-5.0, default is 0.35)
 --streaming Use streaming mode for TTS generation (default: true)
 --instant-mode Enable ultra-low latency mode for significantly faster generation (requires streaming=true, a voice, and incurs 10% higher cost)
+--curl Generate curl command instead of making the API request
 
 ━━━ Details ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -109,6 +110,9 @@ $ hume tts "Hello world" -v narrator --instant-mode
 
 Setting instant mode in your config (always enable)
 $ hume config set tts.instantMode true
+
+Generating curl command instead of making API request
+$ hume tts "Hello world" -v narrator --curl
 
 ## Voice Management
 

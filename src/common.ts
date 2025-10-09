@@ -160,8 +160,8 @@ export const formatApiKeyForCurl = (provenance: ApiKeyProvenance): string => {
     case 'env':
       return '$HUME_API_KEY';
     case 'global':
-      return '$(hume config show | jq \'.apiKey\')';
+      return "$(hume config show | jq '.apiKey')";
     case 'session':
-      return '$(hume session show | jq \'.apiKey\')';
+      return "$(hume session show | jq '.apiKey')";
   }
 };

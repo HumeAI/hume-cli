@@ -2,11 +2,19 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { getLastSynthesisFromHistory, saveLastSynthesisToHistory } from './history';
 import { join, dirname } from 'path';
 import { assert } from 'node:console';
-import { debug, type CommonOpts, getSettings, ApiKeyNotSetError, type Reporter, formatApiKeyForCurl, getApiKeyProvenance } from './common';
+import {
+  debug,
+  type CommonOpts,
+  getSettings,
+  ApiKeyNotSetError,
+  type Reporter,
+  formatApiKeyForCurl,
+  getApiKeyProvenance,
+} from './common';
 import type { ConfigData } from './config';
 import type { Hume, HumeClient } from 'hume';
 import { playAudioFile, withStdinAudioPlayer } from './play_audio';
-import HumeSerialization from 'hume/serialization'
+import HumeSerialization from 'hume/serialization';
 
 type SynthesisOutputOpts =
   | {
@@ -394,7 +402,6 @@ export class Tts {
       );
     }
 
-
     const outputOpts = calculateOutputOpts(opts);
     if (opts.presetVoice) {
       reporter.warn(
@@ -431,13 +438,9 @@ export class Tts {
       // Build TTS object from options as usual
       const baseTts = {
         utterances: [utterance],
+        numGenerations: outputOpts.numGenerations,
         format: { type: opts.format },
       };
-
-      // Only include numGenerations for non-streaming endpoints
-      if (!opts.streaming) {
-        baseTts.numGenerations = outputOpts.numGenerations;
-      }
 
       // Only add version field if modelVersion is explicitly set (not null)
       if (opts.modelVersion !== null) {
@@ -630,20 +633,25 @@ export class Tts {
       throw new ApiKeyNotSetError();
     }
 
-    const baseUrl = opts.baseUrl ?? env.HUME_BASE_URL ?? session.baseUrl ?? globalConfig.baseUrl ?? 'https://api.hume.ai';
+    const baseUrl =
+      opts.baseUrl ??
+      env.HUME_BASE_URL ??
+      session.baseUrl ??
+      globalConfig.baseUrl ??
+      'https://api.hume.ai';
     const apiKey = formatApiKeyForCurl(apiKeyProvenance);
 
     // Determine the endpoint based on streaming mode
     const endpoint = opts.streaming ? '/v0/tts/stream/json' : '/v0/tts';
     const url = `${baseUrl}${endpoint}`;
 
-    const serialized = HumeSerialization.tts.PostedTts.jsonOrThrow(tts)
-    
+    const serialized = HumeSerialization.tts.PostedTts.jsonOrThrow(tts);
+
     // Generate curl command with URL first
     const curlCommand = [
       `curl "${url}"`,
       `  -H "X-Hume-Api-Key: ${apiKey}"`,
-      `  --json '${JSON.stringify(serialized)}'`
+      `  --json '${JSON.stringify(serialized)}'`,
     ].join(' \\\n');
 
     reporter.info('Generated curl command:');

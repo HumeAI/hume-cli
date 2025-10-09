@@ -895,4 +895,72 @@ describe('CLI End-to-End Tests', () => {
     // since the error format might vary
     expect(result.stderr.length).toBeGreaterThan(0);
   });
+
+  test('Curl option generates curl command', async () => {
+    const result = await testEnv.runCliTtsCommand(
+      ['Hello world', '--description', 'A friendly voice', '--curl'],
+      { env: DEFAULT_ENV }
+    );
+
+    logFailureDetails(result);
+
+    expect(result.exitCode).toBe(0);
+
+    // Should contain curl command output
+    expect(result.stdout).toContain('curl "');
+    expect(result.stdout).toContain('X-Hume-Api-Key: $HUME_API_KEY');
+    expect(result.stdout).toContain('--json');
+
+    // Should not make any actual API requests when using --curl
+    const ttsRequests = testEnv.getTtsRequests();
+    expect(ttsRequests.length).toBe(0);
+  });
+
+  test('Curl option with custom base URL', async () => {
+    const customBaseUrl = 'https://custom.api.hume.ai';
+
+    const result = await testEnv.runCliCommand(
+      [
+        'tts',
+        'Hello world',
+        '--description',
+        'A friendly voice',
+        '--curl',
+        '--base-url',
+        customBaseUrl,
+      ],
+      { env: DEFAULT_ENV }
+    );
+
+    logFailureDetails(result);
+
+    expect(result.exitCode).toBe(0);
+
+    // Should contain curl command with custom base URL
+    expect(result.stdout).toContain(`curl "${customBaseUrl}/v0/tts/stream/json"`);
+
+    // Should not make any actual API requests when using --curl
+    const ttsRequests = testEnv.getTtsRequests();
+    expect(ttsRequests.length).toBe(0);
+  });
+
+  test('Curl option with non-streaming mode', async () => {
+    const result = await testEnv.runCliCommand(
+      ['tts', 'Hello world', '--description', 'A friendly voice', '--curl', '--no-streaming'],
+      { env: DEFAULT_ENV }
+    );
+
+    logFailureDetails(result);
+
+    expect(result.exitCode).toBe(0);
+
+    // Should contain curl command with non-streaming endpoint
+    expect(result.stdout).toContain('curl "');
+    expect(result.stdout).toContain('/v0/tts"');
+    expect(result.stdout).not.toContain('/stream/json');
+
+    // Should not make any actual API requests when using --curl
+    const ttsRequests = testEnv.getTtsRequests();
+    expect(ttsRequests.length).toBe(0);
+  });
 });

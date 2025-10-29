@@ -550,6 +550,7 @@ describe('CLI End-to-End Tests', () => {
       audio,
       audio_format: 'wav' as const,
       is_last_chunk: partial.isLastChunk ?? true,
+      type: 'audio' as const,
       utterance_index: partial.utteranceIndex ?? 0,
       snippet: {
         id: snippetId,

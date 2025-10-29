@@ -14,7 +14,7 @@ import {
 import type { ConfigData } from './config';
 import type { Hume, HumeClient } from 'hume';
 import { playAudioFile, withStdinAudioPlayer } from './play_audio';
-import HumeSerialization from 'hume/serialization';
+import { tts as humeSerializationTts } from 'hume/serialization';
 
 type SynthesisOutputOpts =
   | {
@@ -645,7 +645,7 @@ export class Tts {
     const endpoint = opts.streaming ? '/v0/tts/stream/json' : '/v0/tts';
     const url = `${baseUrl}${endpoint}`;
 
-    const serialized = HumeSerialization.tts.PostedTts.jsonOrThrow(tts);
+    const serialized = humeSerializationTts.PostedTts.jsonOrThrow(tts);
 
     // Generate curl command with URL first
     const curlCommand = [

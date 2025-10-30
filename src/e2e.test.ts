@@ -8,6 +8,8 @@ import type { SnippetAudioChunk as SnippetAudioChunk_ } from 'hume/serialization
 import type { Hume } from 'hume';
 
 type SnippetAudioChunk = Hume.tts.SnippetAudioChunk;
+
+type SnippetAudioChunk = Hume.tts.SnippetAudioChunk;
 type RawSnippetAudioChunk = SnippetAudioChunk_.Raw;
 
 // Test utility function for logging during tests
@@ -550,6 +552,7 @@ describe('CLI End-to-End Tests', () => {
       audio,
       audio_format: 'wav' as const,
       is_last_chunk: partial.isLastChunk ?? true,
+      type: 'audio' as const,
       utterance_index: partial.utteranceIndex ?? 0,
       snippet: {
         id: snippetId,

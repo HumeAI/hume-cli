@@ -8,6 +8,8 @@ import type { SnippetAudioChunk as SnippetAudioChunk_ } from 'hume/serialization
 import type { Hume } from 'hume';
 
 type SnippetAudioChunk = Hume.tts.SnippetAudioChunk;
+
+type SnippetAudioChunk = Hume.tts.SnippetAudioChunk;
 type RawSnippetAudioChunk = SnippetAudioChunk_.Raw;
 
 // Test utility function for logging during tests

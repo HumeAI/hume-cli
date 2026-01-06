@@ -4,11 +4,11 @@ import { mkdir, mkdtemp, rm } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { existsSync } from 'fs';
-import type { SnippetAudioChunk as SnippetAudioChunk_ } from 'hume/serialization/resources/tts/types';
 import type { Hume } from 'hume';
+import * as HumeRaw from 'hume/serialization';
 
 type SnippetAudioChunk = Hume.tts.SnippetAudioChunk;
-type RawSnippetAudioChunk = SnippetAudioChunk_.Raw;
+type RawSnippetAudioChunk = HumeRaw.tts.SnippetAudioChunk.Raw;
 
 // Test utility function for logging during tests
 // Only logs when BUN_TEST_VERBOSE=1 is set
@@ -541,6 +541,7 @@ describe('CLI End-to-End Tests', () => {
     const text = `Sample text for ${snippetId}`;
 
     return {
+      type: 'audio',
       request_id: `test_request_${Date.now()}_${generationId}`,
       generation_id: generationId,
       snippet_id: snippetId,

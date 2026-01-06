@@ -3,7 +3,6 @@ import { Tts, type SynthesisOpts } from './tts';
 import type { Hume } from 'hume';
 import { HumeClient } from 'hume';
 import type { ConfigData } from './config';
-import type { Snippet } from 'hume/api/resources/tts';
 
 const stubGen = (id: number) => ({
   generationId: `gen_${id}`,
@@ -23,7 +22,7 @@ const snippy = (
     text: `text_${gen}_${snip}`,
     audio: `audio_${gen}_${snip}`,
   }
-): Snippet => ({
+): Hume.tts.Snippet => ({
   generationId: `gen_${gen}`,
   id: `gen_${gen}_${snip}`,
   text,
@@ -462,7 +461,7 @@ describe('continue functionality', () => {
 
     const synthesizeJsonStreaming = mockSynthesizeJsonStreaming([snippy(10)]);
 
-    const { tts} = setupTest({
+    const { tts } = setupTest({
       getLastSynthesis: mock(() => Promise.resolve(lastGeneration)),
       synthesizeJsonStreaming,
     });
@@ -765,15 +764,16 @@ describe('instant mode functionality', () => {
       timestamp: Date.now(),
     };
 
-    const synthesizeJson: Mock<HumeClient['tts']['synthesizeJson']> = mock(() =>
-      Promise.resolve({
-        generations: [
-          {
-            generationId: 'gen_1',
-            audio: 'mock-audio-data',
-          },
-        ],
-      }) as any
+    const synthesizeJson: Mock<HumeClient['tts']['synthesizeJson']> = mock(
+      () =>
+        Promise.resolve({
+          generations: [
+            {
+              generationId: 'gen_1',
+              audio: 'mock-audio-data',
+            },
+          ],
+        }) as any
     );
 
     const { tts } = setupTest({
@@ -805,15 +805,16 @@ describe('instant mode functionality', () => {
   });
 
   test('includes version field when explicit model version is provided', async () => {
-    const synthesizeJson: Mock<HumeClient['tts']['synthesizeJson']> = mock(() =>
-      Promise.resolve({
-        generations: [
-          {
-            generationId: 'gen_1',
-            audio: 'mock-audio-data',
-          },
-        ],
-      }) as any
+    const synthesizeJson: Mock<HumeClient['tts']['synthesizeJson']> = mock(
+      () =>
+        Promise.resolve({
+          generations: [
+            {
+              generationId: 'gen_1',
+              audio: 'mock-audio-data',
+            },
+          ],
+        }) as any
     );
 
     const { tts } = setupTest({

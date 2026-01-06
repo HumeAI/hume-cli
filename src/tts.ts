@@ -14,7 +14,7 @@ import {
 import type { ConfigData } from './config';
 import type { Hume, HumeClient } from 'hume';
 import { playAudioFile, withStdinAudioPlayer } from './play_audio';
-import HumeSerialization from 'hume/serialization';
+import * as HumeSerialization from 'hume/serialization';
 
 type SynthesisOutputOpts =
   | {

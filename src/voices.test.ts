@@ -1,7 +1,6 @@
 import { describe, test, expect, mock, beforeEach } from 'bun:test';
 import { Voices } from './voices';
 import { HumeClient } from 'hume';
-import { type Page } from 'hume/core';
 
 describe('Voices', () => {
   const mockHume = {
@@ -9,7 +8,7 @@ describe('Voices', () => {
       voices: {
         create: mock(() => Promise.resolve({ name: 'test-voice', id: 'voice123' })),
         list: mock(
-          (): Promise<Partial<Page<unknown>>> =>
+          (): Promise<any> =>
             Promise.resolve({
               hasNextPage: () => true,
               data: [

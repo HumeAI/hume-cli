@@ -332,7 +332,9 @@ export class Tts {
     const requestJson = opts.requestJson ?? null;
 
     // If user didn't explicitly set streaming, and neither voiceId nor voiceName, set streaming to false
-    const wasVoiceSpecified = opts.voiceId || opts.voiceName;
+    // Also consider continuation (last/contextGenerationId) as having a voice from context
+    const wasVoiceSpecified =
+      opts.voiceId || opts.voiceName || opts.last || opts.contextGenerationId;
 
     let streaming = osgd('streaming').item;
 
@@ -340,7 +342,7 @@ export class Tts {
 
     if (!wasStreamingSpecified) {
       if (wasVoiceSpecified) {
-        // Default to streaming when voice is specified
+        // Default to streaming when voice is specified (or inherited via continuation)
         streaming = true;
       } else {
         // Default to non-streaming when no voice is specified

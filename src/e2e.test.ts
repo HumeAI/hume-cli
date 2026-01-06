@@ -85,10 +85,13 @@ class TestEnvironment {
   }
 
   /**
-   * Get the TTS API requests specifically
+   * Get the TTS API requests specifically (both streaming and buffered (non-streaming))
    */
   getTtsRequests() {
-    return this.server.findRequestsTo('/v0/tts/stream/json');
+    return [
+      ...this.server.findRequestsTo('/v0/tts/stream/json'),
+      ...this.server.findRequestsTo('/v0/tts'),
+    ];
   }
 
   /**
@@ -398,6 +401,53 @@ class MockHumeServer {
             headers: { 'Content-Type': 'text-plain; charset=utf-8' },
           }
         );
+      } catch (error) {
+        log(`Error in mock handler: ${error}`);
+        return new Response(JSON.stringify({ error: 'Internal server error' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+    });
+
+    // Buffered TTS endpoint
+    this.addHandler('/v0/tts', async (req) => {
+      try {
+        const body = await req.json();
+
+        // If error is configured, return that instead
+        if (this.ttsOptions.error) {
+          return new Response(JSON.stringify({ error: this.ttsOptions.error.message }), {
+            status: this.ttsOptions.error.status,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
+        const numGenerations = body.numGenerations || 1;
+
+        let generations;
+        if (this.ttsOptions.chunks && this.ttsOptions.chunks.length > 0) {
+          // Convert streaming chunks format to non-streaming generations format
+          generations = this.ttsOptions.chunks.map((chunk) => ({
+            generationId: chunk.generation_id,
+            duration: 1.0,
+            audio: chunk.audio,
+          }));
+        } else {
+          // Create default mock generations
+          const mockAudio = Buffer.from('mock-audio-data').toString('base64');
+
+          generations = Array.from({ length: numGenerations }, (_, i) => ({
+            generationId: `mock_gen_${i + 1}`,
+            duration: 1.0,
+            audio: mockAudio,
+          }));
+        }
+
+        return new Response(JSON.stringify({ generations }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
       } catch (error) {
         log(`Error in mock handler: ${error}`);
         return new Response(JSON.stringify({ error: 'Internal server error' }), {
@@ -937,8 +987,8 @@ describe('CLI End-to-End Tests', () => {
 
     expect(result.exitCode).toBe(0);
 
-    // Should contain curl command with custom base URL
-    expect(result.stdout).toContain(`curl "${customBaseUrl}/v0/tts/stream/json"`);
+    // Should contain curl command with custom base URL (non-streaming since only --description is used)
+    expect(result.stdout).toContain(`curl "${customBaseUrl}/v0/tts"`);
 
     // Should not make any actual API requests when using --curl
     const ttsRequests = testEnv.getTtsRequests();

@@ -336,10 +336,16 @@ export class Tts {
 
     let streaming = osgd('streaming').item;
 
-    const wasStreamingSpecified = streaming !== null || streaming !== undefined;
+    const wasStreamingSpecified = streaming !== null && streaming !== undefined;
 
-    if (!wasStreamingSpecified && !wasVoiceSpecified) {
-      streaming = false;
+    if (!wasStreamingSpecified) {
+      if (wasVoiceSpecified) {
+        // Default to streaming when voice is specified
+        streaming = true;
+      } else {
+        // Default to non-streaming when no voice is specified
+        streaming = false;
+      }
     }
 
     // VoiceId and voiceName are mutually exclusive within opts, but

@@ -121,15 +121,16 @@ const setupTest = (
 
 describe('CLI flags', () => {
   test('--text', async () => {
-    const synthesizeJsonStreaming = mockSynthesizeJsonStreaming([snippy(1)]);
+    const synthesizeJson = mockSynthesizeJson([stubGen(1)]);
     const { tts, mocks } = setupTest({
-      synthesizeJsonStreaming,
+      synthesizeJson,
     });
 
     await tts.synthesize({ text: 'Hello world' });
 
-    expect(synthesizeJsonStreaming).toHaveBeenCalled();
-    expect(mocks.writeAudio).toHaveBeenCalled();
+    // When only text is provided (no voice), non-streaming mode is used
+    expect(synthesizeJson).toHaveBeenCalled();
+    expect(mocks.ensureDirAndWriteFile).toHaveBeenCalled();
   });
 });
 

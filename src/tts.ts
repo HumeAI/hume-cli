@@ -123,7 +123,7 @@ export type SynthesisOpts = CommonOpts & {
   provider?: 'CUSTOM_VOICE' | 'HUME_AI';
   speed?: number;
   trailingSilence?: number;
-  streaming?: boolean;
+  streaming?: boolean | null;
   instantMode?: boolean;
   modelVersion?: '1' | '2';
   requestJson?: string;
@@ -159,7 +159,7 @@ export class Tts {
     presetVoice: false,
     speed: null,
     trailingSilence: null,
-    streaming: true,
+    streaming: null,
     instantMode: false,
     modelVersion: null,
   };
@@ -327,10 +327,20 @@ export class Tts {
     const presetVoice = osgd('presetVoice').item;
     const speed = osgd('speed').item;
     const trailingSilence = osgd('trailingSilence').item;
-    const streaming = osgd('streaming').item;
     const instantMode = osgd('instantMode').item;
     const modelVersion = osgd('modelVersion').item;
     const requestJson = opts.requestJson ?? null;
+
+    // If user didn't explicitly set streaming, and neither voiceId nor voiceName, set streaming to false
+    const wasVoiceSpecified = opts.voiceId || opts.voiceName;
+
+    let streaming = osgd('streaming').item;
+
+    const wasStreamingSpecified = streaming !== null || streaming !== undefined;
+
+    if (!wasStreamingSpecified && !wasVoiceSpecified) {
+      streaming = false;
+    }
 
     // VoiceId and voiceName are mutually exclusive within opts, but
     // not across layers. VoiceId defined with greater priority should

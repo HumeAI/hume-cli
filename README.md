@@ -9,7 +9,7 @@ This CLI uses Hume's [Typescript SDK](https://github.com/humeai/hume-typescript-
 ## Quickstart
 
 ```shell
-npm install -g @humeai-cli
+npm install -g @humeai/cli
 hume login
 # Use the browser to login to platform.hume.ai to retrieve your
 # API keys

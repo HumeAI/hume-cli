@@ -1,4 +1,4 @@
-import type { ReturnVoice } from 'hume/api/resources/tts';
+import type { Hume } from 'hume';
 import { debug, ApiKeyNotSetError, getSettings, type CommonOpts } from './common';
 import { getLastSynthesisFromHistory } from './history';
 
@@ -104,7 +104,7 @@ export class Voices {
     );
 
     reporter.json(
-      result.data.map((voice: ReturnVoice) => ({
+      result.data.map((voice: Hume.tts.ReturnVoice) => ({
         id: voice.id,
         name: voice.name,
       }))

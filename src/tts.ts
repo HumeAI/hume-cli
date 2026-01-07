@@ -14,7 +14,7 @@ import {
 import type { ConfigData } from './config';
 import type { Hume, HumeClient } from 'hume';
 import { playAudioFile, withStdinAudioPlayer } from './play_audio';
-import HumeSerialization from 'hume/serialization';
+import * as HumeSerialization from 'hume/serialization';
 
 type SynthesisOutputOpts =
   | {
@@ -123,7 +123,7 @@ export type SynthesisOpts = CommonOpts & {
   provider?: 'CUSTOM_VOICE' | 'HUME_AI';
   speed?: number;
   trailingSilence?: number;
-  streaming?: boolean;
+  streaming?: boolean | null;
   instantMode?: boolean;
   modelVersion?: '1' | '2';
   requestJson?: string;
@@ -159,7 +159,7 @@ export class Tts {
     presetVoice: false,
     speed: null,
     trailingSilence: null,
-    streaming: true,
+    streaming: null,
     instantMode: false,
     modelVersion: null,
   };
@@ -327,10 +327,28 @@ export class Tts {
     const presetVoice = osgd('presetVoice').item;
     const speed = osgd('speed').item;
     const trailingSilence = osgd('trailingSilence').item;
-    const streaming = osgd('streaming').item;
     const instantMode = osgd('instantMode').item;
     const modelVersion = osgd('modelVersion').item;
     const requestJson = opts.requestJson ?? null;
+
+    // If user didn't explicitly set streaming, and neither voiceId nor voiceName, set streaming to false
+    // Also consider continuation (last/contextGenerationId) as having a voice from context
+    const wasVoiceSpecified =
+      opts.voiceId || opts.voiceName || opts.last || opts.contextGenerationId;
+
+    let streaming = osgd('streaming').item;
+
+    const wasStreamingSpecified = streaming !== null && streaming !== undefined;
+
+    if (!wasStreamingSpecified) {
+      if (wasVoiceSpecified) {
+        // Default to streaming when voice is specified (or inherited via continuation)
+        streaming = true;
+      } else {
+        // Default to non-streaming when no voice is specified
+        streaming = false;
+      }
+    }
 
     // VoiceId and voiceName are mutually exclusive within opts, but
     // not across layers. VoiceId defined with greater priority should
